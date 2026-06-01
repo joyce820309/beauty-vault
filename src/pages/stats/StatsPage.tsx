@@ -9,8 +9,8 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { useTheme } from '@/contexts/ThemeContext'
 
 const THEME_COLORS = {
-  summer: ['#C4768A', '#D99AAC', '#EABCC8', '#F5D8E0', '#8FA3C8', '#AEBDD9', '#CDD7EA', '#9B8DB8'],
-  spring: ['#CC7B6A', '#DA9B8E', '#E8BCB2', '#F4D8D2', '#C8A96A', '#D8C08E', '#E8D8B2', '#A89060'],
+  light: ['#C4768A', '#D99AAC', '#EABCC8', '#F0D4DB', '#8FA3C8', '#AEBDD9', '#C8D5E8', '#9B8DB8'],
+  dark:  ['#D4899C', '#C07088', '#A85C74', '#8F4A60', '#7B98BC', '#6888A8', '#567094', '#8B7BAB'],
 }
 
 function SummaryCard({ label, value, sub }: { label: string; value: string; sub?: string }) {

@@ -1,8 +1,10 @@
 import { Link } from 'react-router-dom'
-import { Droplets, Sparkles, User, ChevronRight } from 'lucide-react'
+import { Droplets, Sparkles, User, BarChart2, ShoppingBag, ChevronRight } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
 const menuItems: { to: string; label: string; Icon: LucideIcon }[] = [
+  { to: '/stats', label: '統計圖表', Icon: BarChart2 },
+  { to: '/my/wishlist', label: '採購清單', Icon: ShoppingBag },
   { to: '/my/skin', label: '膚況追蹤', Icon: Droplets },
   { to: '/my/aesthetic', label: '醫美紀錄', Icon: Sparkles },
   { to: '/my/profile', label: '個人檔案', Icon: User },

@@ -13,6 +13,7 @@ import AestheticPage from '@/pages/mypage/AestheticPage'
 import AestheticFormPage from '@/pages/mypage/AestheticFormPage'
 import AestheticDetailPage from '@/pages/mypage/AestheticDetailPage'
 import ProfilePage from '@/pages/mypage/ProfilePage'
+import WishlistPage from '@/pages/wishlist/WishlistPage'
 
 export default function App() {
   return (
@@ -34,6 +35,7 @@ export default function App() {
           <Route path="my/aesthetic/:id" element={<AestheticDetailPage />} />
           <Route path="my/aesthetic/:id/edit" element={<AestheticFormPage />} />
           <Route path="my/profile" element={<ProfilePage />} />
+          <Route path="my/wishlist" element={<WishlistPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

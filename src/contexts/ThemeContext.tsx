@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 
-export type Theme = 'summer' | 'spring'
+export type Theme = 'light' | 'dark'
 
 interface ThemeContextValue {
   theme: Theme
@@ -8,26 +8,24 @@ interface ThemeContextValue {
 }
 
 const ThemeContext = createContext<ThemeContextValue>({
-  theme: 'summer',
+  theme: 'light',
   setTheme: () => {},
 })
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>(
-    () => (localStorage.getItem('bv-theme') as Theme) ?? 'summer'
-  )
+  const [theme, setThemeState] = useState<Theme>(() => {
+    const saved = localStorage.getItem('bv-theme') as Theme | null
+    if (saved === 'light' || saved === 'dark') return saved
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+  })
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
     localStorage.setItem('bv-theme', theme)
   }, [theme])
 
-  function setTheme(t: Theme) {
-    setThemeState(t)
-  }
-
   return (
-    <ThemeContext.Provider value={{ theme, setTheme }}>
+    <ThemeContext.Provider value={{ theme, setTheme: setThemeState }}>
       {children}
     </ThemeContext.Provider>
   )

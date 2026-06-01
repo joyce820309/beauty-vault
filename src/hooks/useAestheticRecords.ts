@@ -8,6 +8,7 @@ import {
   addSessionLog,
   deleteSessionLog,
 } from '@/lib/supabase/aestheticRecords'
+import { useRefreshKey } from '@/contexts/RefreshContext'
 import type { AestheticRecord, AestheticSessionLog } from '@/types/database'
 
 export type AestheticRecordWithSessions = AestheticRecord & {
@@ -15,6 +16,7 @@ export type AestheticRecordWithSessions = AestheticRecord & {
 }
 
 export function useAestheticRecords() {
+  const refreshKey = useRefreshKey()
   const [records, setRecords] = useState<AestheticRecord[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -25,12 +27,13 @@ export function useAestheticRecords() {
     setLoading(false)
   }, [])
 
-  useEffect(() => { fetch() }, [fetch])
+  useEffect(() => { fetch() }, [fetch, refreshKey])
 
   return { records, loading, refetch: fetch }
 }
 
 export function useAestheticRecordDetail(id: number) {
+  const refreshKey = useRefreshKey()
   const [record, setRecord] = useState<AestheticRecordWithSessions | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -41,7 +44,7 @@ export function useAestheticRecordDetail(id: number) {
     setLoading(false)
   }, [id])
 
-  useEffect(() => { fetch() }, [fetch])
+  useEffect(() => { fetch() }, [fetch, refreshKey])
 
   async function addSession(sessionDate: string, note: string) {
     await addSessionLog({ aesthetic_record_id: id, session_date: sessionDate, note: note || null })

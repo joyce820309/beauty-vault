@@ -16,7 +16,10 @@ const schema = z.object({
   treatment_date: z.string().min(1, '請選擇日期'),
   description: z.string().optional(),
   total_price: z.coerce.number().int().nonnegative().optional().or(z.literal('')),
-  total_sessions: z.coerce.number().int().min(1),
+  total_sessions: z.coerce
+    .number({ invalid_type_error: '請輸入數字' })
+    .int()
+    .min(1, '至少 1 堂'),
   note: z.string().optional(),
 })
 
@@ -27,7 +30,11 @@ function Field({ label, error, children }: { label: string; error?: string; chil
     <div>
       <label className="block text-sm font-medium text-[var(--color-text)] mb-1">{label}</label>
       {children}
-      {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
+      {error && (
+        <p className="text-xs font-medium mt-1.5" style={{ color: 'var(--color-primary-dark)' }}>
+          {error}
+        </p>
+      )}
     </div>
   )
 }
@@ -37,8 +44,10 @@ function Input(props: React.InputHTMLAttributes<HTMLInputElement> & { error?: st
   return (
     <input
       {...rest}
-      className={`w-full px-3 py-2.5 rounded-xl border text-sm text-[var(--color-text)] bg-[var(--color-bg-card)] focus:outline-none focus:border-[var(--color-primary)] ${
-        error ? 'border-red-400' : 'border-[var(--color-border)]'
+      className={`w-full px-3 py-2.5 rounded-xl text-sm text-[var(--color-text)] bg-[var(--color-bg-card)] focus:outline-none transition-all ${
+        error
+          ? 'border-2 border-[var(--color-primary)] shadow-[0_0_0_3px_var(--color-focus-ring)]'
+          : 'border border-[var(--color-border)]'
       }`}
     />
   )
@@ -75,7 +84,7 @@ export default function AestheticFormPage() {
       treatment_date: data.treatment_date,
       description: data.description || null,
       total_price: data.total_price === '' ? null : Number(data.total_price),
-      total_sessions: data.total_sessions,
+      total_sessions: Number(data.total_sessions),
       note: data.note || null,
     }
     if (isEdit) {
@@ -120,7 +129,7 @@ export default function AestheticFormPage() {
             {...register('description')}
             rows={3}
             placeholder="記錄施打部位、能量設定等細節…"
-            className="w-full px-3 py-2.5 rounded-xl border border-[var(--color-border)] text-sm text-[var(--color-text)] bg-[var(--color-bg-card)] focus:outline-none focus:border-[var(--color-primary)] resize-none"
+            className="w-full px-3 py-2.5 rounded-xl border border-[var(--color-border)] text-sm text-[var(--color-text)] bg-[var(--color-bg-card)] focus:outline-none resize-none"
           />
         </Field>
 
@@ -142,7 +151,7 @@ export default function AestheticFormPage() {
             {...register('note')}
             rows={2}
             placeholder="選填"
-            className="w-full px-3 py-2.5 rounded-xl border border-[var(--color-border)] text-sm text-[var(--color-text)] bg-[var(--color-bg-card)] focus:outline-none focus:border-[var(--color-primary)] resize-none"
+            className="w-full px-3 py-2.5 rounded-xl border border-[var(--color-border)] text-sm text-[var(--color-text)] bg-[var(--color-bg-card)] focus:outline-none resize-none"
           />
         </Field>
 

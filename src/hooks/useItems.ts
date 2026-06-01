@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { getItems, searchItems } from '@/lib/supabase/items'
+import { useRefreshKey } from '@/contexts/RefreshContext'
 import type { Item, ItemType, SensitiveSkinStatus } from '@/types/database'
 
 export interface ItemFilters {
@@ -9,6 +10,7 @@ export interface ItemFilters {
 }
 
 export function useItems() {
+  const refreshKey = useRefreshKey()
   const [items, setItems] = useState<Item[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -22,7 +24,7 @@ export function useItems() {
     setLoading(false)
   }, [])
 
-  useEffect(() => { fetchItems() }, [fetchItems])
+  useEffect(() => { fetchItems() }, [fetchItems, refreshKey])
 
   return { items, loading, error, refetch: fetchItems }
 }

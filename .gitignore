@@ -32,3 +32,5 @@ dist-ssr
 # Cloned repos
 superpowers/
 ui-ux-pro-max-skill/
+
+.vercel

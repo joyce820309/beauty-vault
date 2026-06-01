@@ -12,7 +12,7 @@ import { supabase } from '@/lib/supabase/client'
 import { MAKEUP_CATEGORIES, SKINCARE_CATEGORIES, SENSITIVE_SKIN_OPTIONS } from '@/utils/categories'
 import { Camera } from 'lucide-react'
 import { useToast } from '@/components/ui/Toast'
-import type { ItemType } from '@/types/database'
+import type { ItemType, PriceType } from '@/types/database'
 
 const schema = z.object({
   item_type: z.enum(['makeup', 'skincare']),
@@ -27,6 +27,8 @@ const schema = z.object({
   mfg_date: z.string().optional(),
   exp_date: z.string().optional(),
   price: z.coerce.number().int().nonnegative().optional().or(z.literal('')),
+  price_type: z.enum(['normal', 'split', 'gift']).optional(),
+  original_price: z.coerce.number().int().nonnegative().optional().or(z.literal('')),
   purchase_date: z.string().optional(),
   note: z.string().optional(),
   rating: z.coerce.number().int().min(1).max(5).optional().or(z.literal('')),
@@ -41,7 +43,11 @@ function Field({ label, error, children }: { label: string; error?: string; chil
     <div>
       <label className="block text-sm font-medium text-[var(--color-text)] mb-1">{label}</label>
       {children}
-      {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
+      {error && (
+        <p className="text-xs font-medium mt-1.5" style={{ color: 'var(--color-primary-dark)' }}>
+          {error}
+        </p>
+      )}
     </div>
   )
 }
@@ -51,8 +57,10 @@ function Input(props: React.InputHTMLAttributes<HTMLInputElement> & { error?: st
   return (
     <input
       {...rest}
-      className={`w-full px-3 py-2.5 rounded-xl border text-sm text-[var(--color-text)] bg-[var(--color-bg-card)] focus:outline-none focus:border-[var(--color-primary)] ${
-        error ? 'border-red-400' : 'border-[var(--color-border)]'
+      className={`w-full px-3 py-2.5 rounded-xl text-sm text-[var(--color-text)] bg-[var(--color-bg-card)] focus:outline-none transition-all ${
+        error
+          ? 'border-2 border-[var(--color-primary)] shadow-[0_0_0_3px_var(--color-focus-ring)]'
+          : 'border border-[var(--color-border)]'
       } ${className ?? ''}`}
     />
   )
@@ -68,12 +76,17 @@ export default function ItemFormPage() {
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
+  const [showCurrencyPanel, setShowCurrencyPanel] = useState(false)
+  const [foreignAmount, setForeignAmount] = useState('')
+  const [rate, setRate] = useState('')
+
   const { register, handleSubmit, control, watch, setValue, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { item_type: 'makeup', sensitive_skin_ok: 'untested' },
+    defaultValues: { item_type: 'makeup', sensitive_skin_ok: 'untested', price_type: 'normal' },
   })
 
   const itemType = watch('item_type') as ItemType
+  const priceType = watch('price_type') as PriceType
   const categories = itemType === 'makeup' ? MAKEUP_CATEGORIES : SKINCARE_CATEGORIES
 
   useEffect(() => {
@@ -135,7 +148,10 @@ export default function ItemFormPage() {
 
     const payload = {
       ...data,
-      price: data.price === '' ? null : Number(data.price),
+      price: data.price_type === 'gift' ? 0 : (data.price === '' ? null : Number(data.price)),
+      price_type: data.price_type ?? 'normal',
+      original_price: data.price_type === 'split' && data.original_price !== ''
+        ? Number(data.original_price) : null,
       rating: itemType === 'skincare' && data.rating !== '' ? Number(data.rating) : null,
       brand_zh: data.brand_zh || null,
       brand_en: data.brand_en || null,
@@ -221,17 +237,17 @@ export default function ItemFormPage() {
           control={control}
           render={({ field }) => (
             <Combobox
-              label="品牌"
+              label="品牌（原文）"
               value={field.value ?? ''}
               onChange={field.onChange}
               options={brands}
-              placeholder="輸入品牌名稱（英文）"
+              placeholder="英文 / 日文 / 韓文品牌名"
               error={errors.brand_en?.message}
             />
           )}
         />
-        <Field label="品牌中文">
-          <Input {...register('brand_zh')} placeholder="選填" />
+        <Field label="品牌中文備註">
+          <Input {...register('brand_zh')} placeholder="中文名稱（選填）" />
         </Field>
 
         {/* 品名 combobox */}
@@ -240,7 +256,7 @@ export default function ItemFormPage() {
           control={control}
           render={({ field }) => (
             <Combobox
-              label="品名"
+              label="品名（原文）"
               value={field.value ?? ''}
               onChange={(v) => {
                 const parts = v.split(' — ')
@@ -248,20 +264,20 @@ export default function ItemFormPage() {
                 if (parts.length === 2 && !watch('brand_en')) setValue('brand_en', parts[0])
               }}
               options={names}
-              placeholder="輸入品名（英文）"
+              placeholder="英文 / 日文 / 韓文品名"
               error={errors.name_en?.message}
             />
           )}
         />
-        <Field label="品名中文">
-          <Input {...register('name_zh')} placeholder="選填" />
+        <Field label="品名中文備註">
+          <Input {...register('name_zh')} placeholder="中文名稱（選填）" />
         </Field>
 
         {/* 色號 */}
-        <Field label="色號">
-          <Input {...register('shade_en')} placeholder="英文色號（選填）" />
+        <Field label="色號（原文）">
+          <Input {...register('shade_en')} placeholder="色號名稱（選填）" />
         </Field>
-        <Field label="色號中文">
+        <Field label="色號中文備註">
           <Input {...register('shade_zh')} placeholder="中文色號（選填）" />
         </Field>
 
@@ -277,9 +293,146 @@ export default function ItemFormPage() {
         )} />
 
         {/* 金額 */}
-        <Field label="購入金額（NTD）" error={errors.price?.message}>
-          <Input type="number" {...register('price')} placeholder="0" error={errors.price?.message} />
-        </Field>
+        <div className="space-y-2">
+          <label className="block text-sm font-medium text-[var(--color-text)]">購入金額（NTD）</label>
+
+          {/* 價格類型標籤 */}
+          <div className="flex gap-2">
+            {([
+              { value: 'normal', label: '一般' },
+              { value: 'split', label: '組合價' },
+              { value: 'gift', label: '贈品' },
+            ] as const).map((t) => (
+              <button
+                key={t.value}
+                type="button"
+                onClick={() => setValue('price_type', t.value)}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors min-h-0 ${
+                  priceType === t.value
+                    ? 'bg-[var(--color-primary)] text-white border-[var(--color-primary)]'
+                    : 'bg-[var(--color-bg-card)] text-[var(--color-text-muted)] border-[var(--color-border)]'
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+
+          {/* 贈品不需要金額 */}
+          {priceType !== 'gift' && (
+            <div className="space-y-2">
+              {/* 組合價：顯示組合總價欄位 */}
+              {priceType === 'split' && (
+                <div>
+                  <p className="text-xs text-[var(--color-text-muted)] mb-1">組合總價（NT$）</p>
+                  <Input
+                    type="number"
+                    {...register('original_price')}
+                    placeholder="例：1500（整組售價）"
+                    error={errors.original_price?.message}
+                  />
+                </div>
+              )}
+              <div>
+                {priceType === 'split' && (
+                  <p className="text-xs text-[var(--color-text-muted)] mb-1">此品項分攤金額（NT$）</p>
+                )}
+                <div className="relative">
+                  <Input
+                    type="number"
+                    {...register('price')}
+                    placeholder={priceType === 'split' ? '此色號分攤金額' : '0'}
+                    error={errors.price?.message}
+                  />
+                  {/* 貨幣換算按鈕 */}
+                  <button
+                    type="button"
+                    onClick={() => setShowCurrencyPanel((v) => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[var(--color-primary)] font-medium min-h-0 min-w-0 hover:underline"
+                  >
+                    外幣換算
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+          {priceType === 'gift' && (
+            <p className="text-xs text-[var(--color-text-muted)] bg-[var(--color-bg-muted)] px-3 py-2 rounded-xl">
+              贈品金額記為 $0，不計入統計花費
+            </p>
+          )}
+
+          {/* 外幣換算面板 */}
+          {showCurrencyPanel && priceType !== 'gift' && (
+            <div className="bg-[var(--color-bg-muted)] rounded-xl p-3 space-y-3">
+              <p className="text-xs font-medium text-[var(--color-text)]">外幣換算</p>
+              {/* 常用貨幣快選 */}
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { label: '🇯🇵 JPY', rate: '0.22' },
+                  { label: '🇰🇷 KRW', rate: '0.024' },
+                  { label: '🇺🇸 USD', rate: '32' },
+                  { label: '🇪🇺 EUR', rate: '35' },
+                  { label: '🇬🇧 GBP', rate: '41' },
+                  { label: '🇭🇰 HKD', rate: '4.1' },
+                ].map((c) => (
+                  <button
+                    key={c.label}
+                    type="button"
+                    onClick={() => setRate(c.rate)}
+                    className={`px-2.5 py-1 rounded-lg text-xs border transition-colors min-h-0 ${
+                      rate === c.rate
+                        ? 'bg-[var(--color-primary)] text-white border-[var(--color-primary)]'
+                        : 'bg-[var(--color-bg-card)] text-[var(--color-text)] border-[var(--color-border)]'
+                    }`}
+                  >
+                    {c.label}
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  value={foreignAmount}
+                  onChange={(e) => setForeignAmount(e.target.value)}
+                  placeholder="外幣金額"
+                  className="flex-1 px-3 py-2 rounded-xl border border-[var(--color-border)] text-sm bg-[var(--color-bg-card)] text-[var(--color-text)] focus:outline-none"
+                />
+                <span className="text-xs text-[var(--color-text-muted)]">×</span>
+                <input
+                  type="number"
+                  value={rate}
+                  onChange={(e) => setRate(e.target.value)}
+                  placeholder="匯率"
+                  className="w-20 px-3 py-2 rounded-xl border border-[var(--color-border)] text-sm bg-[var(--color-bg-card)] text-[var(--color-text)] focus:outline-none"
+                />
+                <button
+                  type="button"
+                  disabled={!foreignAmount || !rate}
+                  onClick={() => {
+                    const ntd = Math.round(Number(foreignAmount) * Number(rate))
+                    setValue('price', ntd)
+                    setShowCurrencyPanel(false)
+                    setForeignAmount('')
+                  }}
+                  className="px-3 py-2 rounded-xl bg-[var(--color-primary)] text-white text-xs font-medium min-h-0 disabled:opacity-40"
+                >
+                  填入
+                </button>
+              </div>
+              {foreignAmount && rate && (
+                <p className="text-xs text-[var(--color-primary)] font-medium">
+                  ≈ NT$ {Math.round(Number(foreignAmount) * Number(rate)).toLocaleString()}
+                </p>
+              )}
+            </div>
+          )}
+          {errors.price && (
+            <p className="text-xs font-medium" style={{ color: 'var(--color-primary-dark)' }}>
+              {errors.price.message}
+            </p>
+          )}
+        </div>
 
         {/* 圖片 */}
         <Field label="產品圖片">

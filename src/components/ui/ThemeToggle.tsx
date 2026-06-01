@@ -1,32 +1,43 @@
-import { Snowflake, Flower2 } from 'lucide-react'
-import { useTheme, type Theme } from '@/contexts/ThemeContext'
-import type { LucideIcon } from 'lucide-react'
-
-const themes: { value: Theme; Icon: LucideIcon; label: string }[] = [
-  { value: 'summer', Icon: Snowflake, label: 'Summer' },
-  { value: 'spring', Icon: Flower2, label: 'Spring' },
-]
+import { Sun, Moon } from 'lucide-react'
+import { useTheme } from '@/contexts/ThemeContext'
 
 export function ThemeToggle() {
   const { theme, setTheme } = useTheme()
+  const isDark = theme === 'dark'
 
   return (
-    <div className="flex items-center gap-1 bg-[var(--color-bg-muted)] rounded-full p-1">
-      {themes.map(({ value, Icon, label }) => (
-        <button
-          key={value}
-          onClick={() => setTheme(value)}
-          title={`Light ${label}`}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all min-h-0 ${
-            theme === value
-              ? 'bg-[var(--color-bg-card)] shadow-sm text-[var(--color-primary)]'
-              : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
-          }`}
-        >
-          <Icon size={12} strokeWidth={theme === value ? 2 : 1.5} />
-          <span>{label}</span>
-        </button>
-      ))}
-    </div>
+    <button
+      onClick={() => setTheme(isDark ? 'light' : 'dark')}
+      title={isDark ? '切換為淺色模式' : '切換為深色模式'}
+      className={[
+        'relative flex items-center w-14 h-7 rounded-full border transition-all duration-300 min-h-0 min-w-0',
+        isDark
+          ? 'bg-[var(--color-bg-muted)] border-[var(--color-border)]'
+          : 'bg-[var(--color-primary-light)] border-[var(--color-primary-light)]',
+      ].join(' ')}
+    >
+      {/* 滑動圓球 */}
+      <span
+        className={[
+          'absolute flex items-center justify-center w-5 h-5 rounded-full shadow-sm transition-all duration-300',
+          isDark
+            ? 'translate-x-[30px] bg-[var(--color-primary)]'
+            : 'translate-x-[3px] bg-[var(--color-primary)]',
+        ].join(' ')}
+      >
+        {isDark
+          ? <Moon size={11} strokeWidth={2} className="text-white" />
+          : <Sun size={11} strokeWidth={2} className="text-white" />
+        }
+      </span>
+
+      {/* 背景 icon（對側） */}
+      <span className={`absolute transition-opacity duration-200 ${isDark ? 'left-2 opacity-40' : 'right-2 opacity-40'}`}>
+        {isDark
+          ? <Sun size={10} strokeWidth={1.5} className="text-[var(--color-text-muted)]" />
+          : <Moon size={10} strokeWidth={1.5} className="text-[var(--color-text-muted)]" />
+        }
+      </span>
+    </button>
   )
 }

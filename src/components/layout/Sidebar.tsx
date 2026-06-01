@@ -1,10 +1,11 @@
 import { NavLink } from 'react-router-dom'
-import { Home, Package, Search, BarChart2, Droplets, Sparkles, User, CalendarClock } from 'lucide-react'
+import { Home, Package, Search, BarChart2, Droplets, Sparkles, User, CalendarClock, ShoppingBag } from 'lucide-react'
 
 const navItems = [
   { to: '/', label: '首頁', Icon: Home },
   { to: '/items', label: '品項管理', Icon: Package },
   { to: '/expiry', label: '即期管理', Icon: CalendarClock },
+  { to: '/my/wishlist', label: '採購清單', Icon: ShoppingBag },
   { to: '/search', label: '搜尋', Icon: Search },
   { to: '/stats', label: '統計圖表', Icon: BarChart2 },
   { to: '/my/skin', label: '膚況追蹤', Icon: Droplets },

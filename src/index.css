@@ -2,44 +2,41 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ── Light Summer（預設，冷調霧感）── */
+/* ── Light（玫瑰色系，預設）── */
 :root,
-[data-theme="summer"] {
-  --color-primary:      #C4768A;   /* Dusty Rose */
-  --color-focus-ring:   #C4768A33; /* 20% opacity */
-  --color-primary-light:#F0D5DC;   /* 淡粉 */
-  --color-primary-dark: #A35970;   /* 深玫 */
-  --color-accent:       #8FA3C8;   /* Periwinkle */
-  --color-accent-light: #D6E0EF;
-  --color-bg:           #FAF8F8;   /* 白底帶微霧 */
-  --color-bg-card:      #FFFFFF;
-  --color-bg-muted:     #F3EFF0;   /* 偏灰粉的底 */
-  --color-text:         #3D3038;
-  --color-text-muted:   #8E7E84;
-  --color-border:       #E8DEE1;
-  /* 即期警示（不動） */
-  --color-danger:       #C0544F;
-  --color-warning:      #C28049;
-  --color-caution:      #B89B3E;
+[data-theme="light"] {
+  --color-primary:       #C4768A;   /* Dusty Rose */
+  --color-primary-light: #F2DCE2;
+  --color-primary-dark:  #A35870;
+  --color-accent:        #8FA3C8;   /* Periwinkle，圖表第二色 */
+  --color-bg:            #FAF8F8;   /* 白底帶微霧 */
+  --color-bg-card:       #FFFFFF;
+  --color-bg-muted:      #F4EFEF;   /* 偏灰粉底 */
+  --color-text:          #3A2E32;   /* 深灰帶暖，非純黑 */
+  --color-text-muted:    #8A7880;
+  --color-border:        #E8DEE0;
+  --color-focus-ring:    rgba(196, 118, 138, 0.22);
+  --color-danger:        #B85550;
+  --color-warning:       #B87840;
+  --color-caution:       #A89030;
 }
 
-/* ── Light Spring（暖調奶油）── */
-[data-theme="spring"] {
-  --color-primary:      #CC7B6A;   /* Camellia / Warm Coral */
-  --color-focus-ring:   #CC7B6A33;
-  --color-primary-light:#F5DDD7;
-  --color-primary-dark: #A85D4C;
-  --color-accent:       #C8A96A;   /* Golden Apricot */
-  --color-accent-light: #F0E2C8;
-  --color-bg:           #FDF9F5;   /* 奶油白 */
-  --color-bg-card:      #FFFFFF;
-  --color-bg-muted:     #F7F0E8;   /* 暖米底 */
-  --color-text:         #3A2E28;
-  --color-text-muted:   #8A7060;
-  --color-border:       #EAE0D5;
-  --color-danger:       #C0544F;
-  --color-warning:      #C28049;
-  --color-caution:      #B89B3E;
+/* ── Dark（深灰玫瑰，第二主題）── */
+[data-theme="dark"] {
+  --color-primary:       #D4899C;   /* 深底上略亮的玫瑰 */
+  --color-primary-light: rgba(212, 137, 156, 0.18);
+  --color-primary-dark:  #EAB8C4;   /* hover 時更亮 */
+  --color-accent:        #8FA3C8;
+  --color-bg:            #1E1A1B;   /* 深暖灰，非純黑 */
+  --color-bg-card:       #2A2426;   /* 卡片略亮 */
+  --color-bg-muted:      #332B2D;   /* 底色 */
+  --color-text:          #EDE6E8;   /* 偏暖白，非純白 */
+  --color-text-muted:    #9E8E92;
+  --color-border:        #3E3436;
+  --color-focus-ring:    rgba(212, 137, 156, 0.28);
+  --color-danger:        #D4706A;
+  --color-warning:       #CC9050;
+  --color-caution:       #C0A840;
 }
 
 /* ── 全域基礎 ── */
@@ -47,6 +44,23 @@ body {
   background-color: var(--color-bg);
   color: var(--color-text);
   font-family: -apple-system, BlinkMacSystemFont, 'Noto Sans TC', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── iOS 防止 focus 自動縮放（font-size < 16px 會觸發）── */
+@supports (-webkit-touch-callout: none) {
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
+/* ── 表單錯誤狀態（全域，取代 red） ── */
+.field-error {
+  border-width: 2px !important;
+  border-color: var(--color-primary) !important;
+  box-shadow: 0 0 0 3px var(--color-focus-ring) !important;
 }
 
 /* ── Input / Textarea / Select focus 光暈 ── */
@@ -59,21 +73,21 @@ select:focus {
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-/* range slider 顏色 */
+/* range slider */
 input[type="range"] {
   accent-color: var(--color-primary);
 }
 
-/* 手機最小點擊區域 */
-button, a, [role="button"] {
-  min-height: 44px;
-  min-width: 44px;
+/* Spin 動畫（pull-to-refresh） */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
 }
 
 /* Select dropdown 動畫 */
 @keyframes selectFadeIn {
   from { opacity: 0; transform: translateY(-4px) scale(0.98); }
-  to   { opacity: 1; transform: translateY(0)   scale(1); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 /* 隱藏橫向捲軸但保留功能 */

@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback } from 'react'
 import { getSkinRecords, createSkinRecord, deleteSkinRecord } from '@/lib/supabase/skinRecords'
 import { getProfile, upsertProfile } from '@/lib/supabase/profile'
+import { useRefreshKey } from '@/contexts/RefreshContext'
 import type { SkinRecord, Profile } from '@/types/database'
 
 export function useSkinRecords() {
+  const refreshKey = useRefreshKey()
   const [records, setRecords] = useState<SkinRecord[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -14,7 +16,7 @@ export function useSkinRecords() {
     setLoading(false)
   }, [])
 
-  useEffect(() => { fetch() }, [fetch])
+  useEffect(() => { fetch() }, [fetch, refreshKey])
 
   async function addRecord(data: Omit<SkinRecord, 'id' | 'created_at'>) {
     await createSkinRecord(data)
@@ -30,6 +32,7 @@ export function useSkinRecords() {
 }
 
 export function useProfile() {
+  const refreshKey = useRefreshKey()
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -38,7 +41,7 @@ export function useProfile() {
       setProfile(data)
       setLoading(false)
     })
-  }, [])
+  }, [refreshKey])
 
   async function saveProfile(data: Omit<Profile, 'id' | 'updated_at'>) {
     const { data: saved } = await upsertProfile(data)
