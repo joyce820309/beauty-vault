@@ -90,3 +90,4 @@ export interface AestheticSessionLog {
   note: string | null
   created_at: string
 }
+
