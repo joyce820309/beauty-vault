@@ -1,0 +1,42 @@
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import Layout from '@/components/layout/Layout'
+import HomePage from '@/pages/home/HomePage'
+import ItemListPage from '@/pages/items/ItemListPage'
+import ItemDetailPage from '@/pages/items/ItemDetailPage'
+import ItemFormPage from '@/pages/items/ItemFormPage'
+import SearchPage from '@/pages/search/SearchPage'
+import ExpiryLogPage from '@/pages/expiry/ExpiryLogPage'
+import StatsPage from '@/pages/stats/StatsPage'
+import MyPage from '@/pages/mypage/MyPage'
+import SkinTrackingPage from '@/pages/mypage/SkinTrackingPage'
+import AestheticPage from '@/pages/mypage/AestheticPage'
+import AestheticFormPage from '@/pages/mypage/AestheticFormPage'
+import AestheticDetailPage from '@/pages/mypage/AestheticDetailPage'
+import ProfilePage from '@/pages/mypage/ProfilePage'
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Layout />}>
+          <Route index element={<HomePage />} />
+          <Route path="items" element={<ItemListPage />} />
+          <Route path="items/new" element={<ItemFormPage />} />
+          <Route path="items/:id" element={<ItemDetailPage />} />
+          <Route path="items/:id/edit" element={<ItemFormPage />} />
+          <Route path="search" element={<SearchPage />} />
+          <Route path="expiry" element={<ExpiryLogPage />} />
+          <Route path="stats" element={<StatsPage />} />
+          <Route path="my" element={<MyPage />} />
+          <Route path="my/skin" element={<SkinTrackingPage />} />
+          <Route path="my/aesthetic" element={<AestheticPage />} />
+          <Route path="my/aesthetic/new" element={<AestheticFormPage />} />
+          <Route path="my/aesthetic/:id" element={<AestheticDetailPage />} />
+          <Route path="my/aesthetic/:id/edit" element={<AestheticFormPage />} />
+          <Route path="my/profile" element={<ProfilePage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Route>
+      </Routes>
+    </BrowserRouter>
+  )
+}

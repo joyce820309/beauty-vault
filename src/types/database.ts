@@ -1,0 +1,74 @@
+// Auto-generate with: supabase gen types typescript --project-id <id> > src/types/database.ts
+
+export type ItemType = 'makeup' | 'skincare'
+export type SensitiveSkinStatus = 'ok' | 'ng' | 'untested'
+export type SeasonalColor = 'spring' | 'summer' | 'autumn' | 'winter'
+export type DisposalStatus = 'kept' | 'disposed'
+
+export interface Item {
+  id: number
+  seq_no: number
+  brand_zh: string | null
+  brand_en: string | null
+  name_zh: string | null
+  name_en: string | null
+  shade_zh: string | null
+  shade_en: string | null
+  category: string | null
+  subcategory: string | null
+  item_type: ItemType
+  mfg_date: string | null
+  exp_date: string | null
+  price: number | null
+  purchase_date: string | null
+  image_url: string | null
+  note: string | null
+  rating: number | null
+  review: string | null
+  sensitive_skin_ok: SensitiveSkinStatus | null
+  disposal_status: DisposalStatus | null
+  created_at: string
+  updated_at: string
+}
+
+export interface SkinRecord {
+  id: number
+  recorded_at: string
+  moisture: number | null
+  sebum: number | null
+  keratin: number | null
+  resilience: number | null
+  accumulation: number | null
+  skin_engy: number | null
+  note: string | null
+  created_at: string
+}
+
+export interface Profile {
+  id: number
+  seasonal_color: SeasonalColor | null
+  face_shape: string | null
+  skin_type: string | null
+  note: string | null
+  updated_at: string
+}
+
+export interface AestheticRecord {
+  id: number
+  treatment_date: string
+  treatment_name: string
+  description: string | null
+  total_price: number | null
+  total_sessions: number
+  used_sessions: number
+  note: string | null
+  created_at: string
+}
+
+export interface AestheticSessionLog {
+  id: number
+  aesthetic_record_id: number
+  session_date: string
+  note: string | null
+  created_at: string
+}
