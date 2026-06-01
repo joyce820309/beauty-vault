@@ -1,0 +1,95 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Light（玫瑰色系，預設）── */
+:root,
+[data-theme="light"] {
+  --color-primary:       #C4768A;   /* Dusty Rose */
+  --color-primary-light: #F2DCE2;
+  --color-primary-dark:  #A35870;
+  --color-accent:        #8FA3C8;   /* Periwinkle，圖表第二色 */
+  --color-bg:            #FAF8F8;   /* 白底帶微霧 */
+  --color-bg-card:       #FFFFFF;
+  --color-bg-muted:      #F4EFEF;   /* 偏灰粉底 */
+  --color-text:          #3A2E32;   /* 深灰帶暖，非純黑 */
+  --color-text-muted:    #8A7880;
+  --color-border:        #E8DEE0;
+  --color-focus-ring:    rgba(196, 118, 138, 0.22);
+  --color-danger:        #B85550;
+  --color-warning:       #B87840;
+  --color-caution:       #A89030;
+}
+
+/* ── Dark（深灰玫瑰，第二主題）── */
+[data-theme="dark"] {
+  --color-primary:       #D4899C;   /* 深底上略亮的玫瑰 */
+  --color-primary-light: rgba(212, 137, 156, 0.18);
+  --color-primary-dark:  #EAB8C4;   /* hover 時更亮 */
+  --color-accent:        #8FA3C8;
+  --color-bg:            #1E1A1B;   /* 深暖灰，非純黑 */
+  --color-bg-card:       #2A2426;   /* 卡片略亮 */
+  --color-bg-muted:      #332B2D;   /* 底色 */
+  --color-text:          #EDE6E8;   /* 偏暖白，非純白 */
+  --color-text-muted:    #9E8E92;
+  --color-border:        #3E3436;
+  --color-focus-ring:    rgba(212, 137, 156, 0.28);
+  --color-danger:        #D4706A;
+  --color-warning:       #CC9050;
+  --color-caution:       #C0A840;
+}
+
+/* ── 全域基礎 ── */
+body {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Noto Sans TC', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── iOS 防止 focus 自動縮放（font-size < 16px 會觸發）── */
+@supports (-webkit-touch-callout: none) {
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
+/* ── 表單錯誤狀態（全域，取代 red） ── */
+.field-error {
+  border-width: 2px !important;
+  border-color: var(--color-primary) !important;
+  box-shadow: 0 0 0 3px var(--color-focus-ring) !important;
+}
+
+/* ── Input / Textarea / Select focus 光暈 ── */
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: var(--color-primary) !important;
+  box-shadow: 0 0 0 3px var(--color-focus-ring);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+/* range slider */
+input[type="range"] {
+  accent-color: var(--color-primary);
+}
+
+/* Spin 動畫（pull-to-refresh） */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* Select dropdown 動畫 */
+@keyframes selectFadeIn {
+  from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* 隱藏橫向捲軸但保留功能 */
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }

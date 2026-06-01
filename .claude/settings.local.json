@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node scripts/import-items.mjs)",
+      "Bash(npm install *)",
+      "Bash(vercel --version)",
+      "Bash(npm bin *)",
+      "Bash(npm root *)",
+      "Bash(npx vercel *)"
+    ]
+  }
+}
