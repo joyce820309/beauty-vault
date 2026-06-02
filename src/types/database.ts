@@ -4,7 +4,7 @@ export type ItemType = 'makeup' | 'skincare'
 export type SensitiveSkinStatus = 'ok' | 'ng' | 'untested'
 export type SeasonalColor = 'spring' | 'summer' | 'autumn' | 'winter'
 export type DisposalStatus = 'kept' | 'disposed' | 'watching'
-export type PriceType = 'normal' | 'split' | 'gift'
+export type PriceType = 'normal' | 'split' | 'gift' | 'present'
 
 export interface Item {
   id: number
@@ -76,6 +76,7 @@ export interface AestheticRecord {
 
 export interface WishlistItem {
   id: number
+  item_type: 'makeup' | 'skincare' | null
   brand: string | null
   name_zh: string | null
   name_en: string | null
@@ -83,6 +84,7 @@ export interface WishlistItem {
   price_type: 'normal' | 'split' | 'gift' | null
   price: number | null
   url: string | null
+  image_url?: string | null
   note: string | null
   is_purchased: boolean
   created_at: string
@@ -104,6 +106,7 @@ export interface MedicationItem {
   ingredients: string | null
   image_front_url: string | null
   image_back_url: string | null
+  image_urls: string[] | null
   note: string | null
   created_at: string
 }

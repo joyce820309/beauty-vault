@@ -1,15 +1,16 @@
-import { useState, useEffect, useCallback } from 'react'
-import { Link } from 'react-router-dom'
-import { Plus, Trash2, ExternalLink, ShoppingBag, Check, Pencil, X, Heart, Zap } from 'lucide-react'
+import { useState, useEffect, useCallback, forwardRef } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { Plus, Trash2, ExternalLink, ShoppingBag, Check, Pencil, X, Heart, Zap, Camera } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import {
   getWishlist, createWishlistItem,
   updateWishlistItem, deleteWishlistItem,
+  uploadWishlistImage,
 } from '@/lib/supabase/wishlist'
-import { getFavoriteItems } from '@/lib/supabase/items'
-import type { Item } from '@/types/database'
+import { getFavoriteItems, createItem } from '@/lib/supabase/items'
+import type { Item, ItemType } from '@/types/database'
 import { useToast } from '@/components/ui/Toast'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
@@ -17,20 +18,19 @@ import type { WishlistItem } from '@/types/database'
 
 // 中文或原文擇一必填
 const schema = z.object({
+  item_type:  z.enum(['makeup', 'skincare']).optional(),
   brand:      z.string().optional(),
   name_zh:    z.string().optional(),
   name_en:    z.string().optional(),
   shade:      z.string().optional(),
   price_type: z.enum(['normal', 'split', 'gift']).optional(),
   price:      z.coerce.number().int().nonnegative().optional().or(z.literal('')),
-  url:        z.string().url('請輸入有效網址').optional().or(z.literal('')),
+  url:        z.string().optional(),
   note:       z.string().optional(),
-}).superRefine((d, ctx) => {
-  if (!d.name_zh?.trim() && !d.name_en?.trim()) {
-    ctx.addIssue({ code: 'custom', path: ['name_zh'], message: '品名中文或原文至少填一個' })
-    ctx.addIssue({ code: 'custom', path: ['name_en'], message: '品名中文或原文至少填一個' })
-  }
-})
+}).refine(
+  (d) => !!(d.name_zh?.trim() || d.name_en?.trim()),
+  { message: '品名中文或原文至少填一個', path: ['name_zh'] }
+)
 
 type FormData = z.infer<typeof schema>
 
@@ -53,28 +53,31 @@ function Field({ label, error, required, children }: {
   )
 }
 
-function Input(props: React.InputHTMLAttributes<HTMLInputElement> & { error?: boolean }) {
-  const { error, ...rest } = props
-  return (
-    <input
-      {...rest}
-      className={`w-full px-3 py-2.5 rounded-xl text-sm text-[var(--color-text)] bg-[var(--color-bg-card)] focus:outline-none transition-all ${
-        error
-          ? 'border-2 border-[var(--color-primary)] shadow-[0_0_0_3px_var(--color-focus-ring)]'
-          : 'border border-[var(--color-border)]'
-      }`}
-    />
-  )
-}
+const Input = forwardRef<
+  HTMLInputElement,
+  React.InputHTMLAttributes<HTMLInputElement> & { error?: boolean }
+>(({ error, className, ...rest }, ref) => (
+  <input
+    {...rest}
+    ref={ref}
+    className={`w-full px-3 py-2.5 rounded-xl text-sm text-[var(--color-text)] bg-[var(--color-bg-card)] focus:outline-none transition-all ${
+      error
+        ? 'border-2 border-[var(--color-primary)] shadow-[0_0_0_3px_var(--color-focus-ring)]'
+        : 'border border-[var(--color-border)]'
+    } ${className ?? ''}`}
+  />
+))
 
 function WishForm({
   defaultValues,
+  defaultImageUrl,
   onSubmit,
   onCancel,
   submitLabel,
 }: {
   defaultValues?: Partial<FormData>
-  onSubmit: (data: FormData) => Promise<void>
+  defaultImageUrl?: string | null
+  onSubmit: (data: FormData, imageFile: File | null, imageUrl: string | null) => Promise<void>
   onCancel: () => void
   submitLabel: string
 }) {
@@ -82,33 +85,73 @@ function WishForm({
   const [showCurrency, setShowCurrency] = useState(false)
   const [foreignAmt, setForeignAmt] = useState('')
   const [fxRate, setFxRate] = useState('')
+  const [imageUrl, setImageUrl] = useState<string | null>(defaultImageUrl ?? null)
+  const [imageFile, setImageFile] = useState<File | null>(null)
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { price_type: 'normal', ...defaultValues },
+    defaultValues: { item_type: 'makeup', price_type: 'normal', ...defaultValues },
     mode: 'onChange',
+    reValidateMode: 'onChange',
   })
   const priceType = watch('price_type')
+  const itemType = watch('item_type') ?? 'makeup'
+
+  function handleImageFile(file: File) {
+    setImageFile(file)
+    setImageUrl(URL.createObjectURL(file))
+  }
 
   const onValid = async (data: FormData) => {
     setSubmitting(true)
-    await onSubmit(data)
+    await onSubmit(data, imageFile, imageUrl)
     setSubmitting(false)
   }
 
+  const activeType = 'bg-[var(--color-primary)] text-white border-[var(--color-primary)]'
+  const inactiveType = 'bg-[var(--color-bg-card)] text-[var(--color-text-muted)] border-[var(--color-border)]'
+
   return (
     <form onSubmit={handleSubmit(onValid)} className="space-y-4">
+      {/* 品項類型 */}
+      <div className="flex gap-2">
+        {(['makeup', 'skincare'] as const).map((t) => (
+          <button
+            key={t}
+            type="button"
+            onClick={() => setValue('item_type', t)}
+            className={`flex-1 py-2 rounded-xl text-sm font-medium border transition-colors min-h-0 ${
+              itemType === t ? activeType : inactiveType
+            }`}
+          >
+            {t === 'makeup' ? '化妝品' : '保養品'}
+          </button>
+        ))}
+      </div>
+
       <Field label="品牌">
         <Input {...register('brand')} placeholder="選填" />
       </Field>
 
       {/* 品名：中文或原文擇一必填 */}
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="品名中文" required error={errors.name_zh?.message}>
-          <Input {...register('name_zh')} placeholder="中文品名" error={!!errors.name_zh} />
-        </Field>
-        <Field label="品名原文" required error={errors.name_en?.message}>
-          <Input {...register('name_en')} placeholder="英 / 日 / 韓文" error={!!errors.name_en} />
-        </Field>
+      <div>
+        <div className="flex items-baseline gap-1 mb-1">
+          <span className="text-sm font-medium text-[var(--color-text)]">品名</span>
+          <span className="text-[var(--color-primary)] text-xs">*</span>
+          <span className="text-xs text-[var(--color-text-muted)]">擇一必填</span>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <Input {...register('name_zh')} placeholder="中文品名" error={!!errors.name_zh} />
+          </div>
+          <div>
+            <Input {...register('name_en')} placeholder="英 / 日 / 韓文" />
+          </div>
+        </div>
+        {errors.name_zh && (
+          <p className="text-xs font-medium mt-1" style={{ color: 'var(--color-primary-dark)' }}>
+            {errors.name_zh.message}
+          </p>
+        )}
       </div>
 
       <Field label="色號">
@@ -190,12 +233,38 @@ function WishForm({
         )}
       </div>
 
-      <Field label="參考網站" error={errors.url?.message}>
+      <Field label="參考網站">
         <Input
           {...register('url')}
           placeholder="https://..."
-          error={!!errors.url}
         />
+      </Field>
+
+      <Field label="圖片">
+        <label className="cursor-pointer inline-block">
+          {imageUrl ? (
+            <div className="relative w-20 h-20 rounded-xl overflow-hidden bg-[var(--color-bg-muted)]">
+              <img src={imageUrl} alt="" className="w-full h-full object-cover" />
+              <button
+                type="button"
+                onClick={(e) => { e.preventDefault(); setImageFile(null); setImageUrl(null) }}
+                className="absolute top-1 right-1 w-5 h-5 bg-black/50 text-white rounded-full flex items-center justify-center min-h-0 min-w-0"
+              >
+                <X size={10} strokeWidth={2} />
+              </button>
+            </div>
+          ) : (
+            <div className="w-20 h-20 rounded-xl border-2 border-dashed border-[var(--color-border)] flex flex-col items-center justify-center gap-1 text-[var(--color-text-muted)] hover:border-[var(--color-primary)] transition-colors bg-[var(--color-bg-muted)]">
+              <Camera size={18} strokeWidth={1.5} />
+              <span className="text-[10px]">上傳</span>
+            </div>
+          )}
+          <input type="file" accept="image/*" className="hidden" onChange={(e) => {
+            const f = e.target.files?.[0]
+            if (f) handleImageFile(f)
+            e.target.value = ''
+          }} />
+        </label>
       </Field>
 
       <Field label="備註">
@@ -229,12 +298,14 @@ function WishForm({
 
 export default function WishlistPage() {
   const { showToast } = useToast()
+  const navigate = useNavigate()
   const [items, setItems] = useState<WishlistItem[]>([])
   const [favorites, setFavorites] = useState<Item[]>([])
   const [loading, setLoading] = useState(true)
   const [showAddForm, setShowAddForm] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [tab, setTab] = useState<'all' | 'pending' | 'purchased' | 'favorites'>('pending')
+  const [typeFilter, setTypeFilter] = useState<'all' | 'makeup' | 'skincare'>('all')
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -249,8 +320,15 @@ export default function WishlistPage() {
 
   useEffect(() => { load() }, [load])
 
-  async function handleAdd(data: FormData) {
+  async function handleAdd(data: FormData, imageFile: File | null, imageUrl: string | null) {
+    let finalImageUrl = imageUrl
+    if (imageFile) {
+      const url = await uploadWishlistImage(imageFile)
+      if (url) finalImageUrl = url
+      else showToast('圖片上傳失敗，品項仍會儲存（不含圖片）', 'error')
+    }
     const { error } = await createWishlistItem({
+      item_type:    data.item_type ?? 'makeup',
       brand:        data.brand || null,
       name_zh:      data.name_zh || null,
       name_en:      data.name_en || null,
@@ -258,6 +336,7 @@ export default function WishlistPage() {
       price_type:   data.price_type ?? 'normal',
       price:        data.price_type === 'gift' ? 0 : (data.price === '' ? null : Number(data.price) || null),
       url:          data.url || null,
+      ...(finalImageUrl !== null ? { image_url: finalImageUrl } : {}),
       note:         data.note || null,
       is_purchased: false,
     })
@@ -267,8 +346,15 @@ export default function WishlistPage() {
     await load()
   }
 
-  async function handleEdit(id: number, data: FormData) {
+  async function handleEdit(id: number, data: FormData, imageFile: File | null, imageUrl: string | null) {
+    let finalImageUrl = imageUrl
+    if (imageFile) {
+      const url = await uploadWishlistImage(imageFile)
+      if (url) finalImageUrl = url
+      else showToast('圖片上傳失敗，品項仍會儲存（不含圖片）', 'error')
+    }
     const { error } = await updateWishlistItem(id, {
+      item_type:  data.item_type ?? 'makeup',
       brand:      data.brand || null,
       name_zh:    data.name_zh || null,
       name_en:    data.name_en || null,
@@ -276,6 +362,7 @@ export default function WishlistPage() {
       price_type: data.price_type ?? 'normal',
       price:      data.price_type === 'gift' ? 0 : (data.price === '' ? null : Number(data.price) || null),
       url:        data.url || null,
+      image_url:  finalImageUrl ?? undefined,
       note:       data.note || null,
     })
     if (error) { showToast('更新失敗', 'error'); return }
@@ -285,9 +372,53 @@ export default function WishlistPage() {
   }
 
   async function togglePurchased(item: WishlistItem) {
-    await updateWishlistItem(item.id, { is_purchased: !item.is_purchased })
-    setItems((prev) => prev.map((i) => i.id === item.id ? { ...i, is_purchased: !i.is_purchased } : i))
-    showToast(item.is_purchased ? '已移回待購' : '已標記為已購')
+    const newPurchased = !item.is_purchased
+    await updateWishlistItem(item.id, { is_purchased: newPurchased })
+    setItems((prev) => prev.map((i) => i.id === item.id ? { ...i, is_purchased: newPurchased } : i))
+
+    if (!newPurchased) {
+      showToast('已移回待購')
+      return
+    }
+
+    // 標記為已購入 → 自動建立品項
+    const { data: newItem, error } = await createItem({
+      item_type:        (item.item_type ?? 'makeup') as ItemType,
+      brand_en:         item.brand || null,
+      brand_zh:         null,
+      name_zh:          item.name_zh,
+      name_en:          item.name_en,
+      shade_en:         item.shade || null,
+      shade_zh:         null,
+      category:         null,
+      subcategory:      null,
+      mfg_date:         null,
+      exp_date:         null,
+      price:            item.price ?? null,
+      price_type:       item.price_type ?? null,
+      original_price:   null,
+      purchase_date:    null,
+      image_url:        item.image_url ?? null,
+      note:             item.note ?? null,
+      rating:           null,
+      review:           null,
+      sensitive_skin_ok: null,
+      disposal_status:  'kept',
+      currency:         null,
+      fragrance:        null,
+      is_dud:           false,
+      is_sample:        false,
+      is_favorite:      false,
+      volume_ml:        null,
+    })
+
+    if (error || !newItem) {
+      showToast('已標記為已購，但品項建立失敗', 'error')
+      return
+    }
+
+    showToast('已購入！正在跳轉至品項編輯…')
+    navigate(`/items/${newItem.id}/edit`)
   }
 
   async function handleDelete(id: number) {
@@ -298,6 +429,7 @@ export default function WishlistPage() {
   }
 
   const filtered = items.filter((i) => {
+    if (typeFilter !== 'all' && (i.item_type ?? 'makeup') !== typeFilter) return false
     if (tab === 'pending') return !i.is_purchased
     if (tab === 'purchased') return i.is_purchased
     return true
@@ -340,6 +472,27 @@ export default function WishlistPage() {
           />
         </div>
       )}
+
+      {/* 類型篩選 */}
+      <div className="flex gap-2 mb-3">
+        {([
+          { key: 'all'      as const, label: '全部' },
+          { key: 'makeup'   as const, label: '化妝品' },
+          { key: 'skincare' as const, label: '保養品' },
+        ]).map(({ key, label }) => (
+          <button
+            key={key}
+            onClick={() => setTypeFilter(key)}
+            className={`flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-colors min-h-0 ${
+              typeFilter === key
+                ? 'bg-[var(--color-primary)] text-white'
+                : 'bg-[var(--color-bg-muted)] text-[var(--color-text-muted)]'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
 
       {/* Tab */}
       <div className="flex gap-2 mb-4">
@@ -433,15 +586,17 @@ export default function WishlistPage() {
                     </div>
                     <WishForm
                       defaultValues={{
-                        brand:   item.brand ?? '',
-                        name_zh: item.name_zh ?? '',
-                        name_en: item.name_en ?? '',
-                        shade:   item.shade ?? '',
-                        price:   item.price ?? '',
-                        url:     item.url ?? '',
-                        note:    item.note ?? '',
+                        item_type: item.item_type ?? 'makeup',
+                        brand:     item.brand ?? '',
+                        name_zh:   item.name_zh ?? '',
+                        name_en:   item.name_en ?? '',
+                        shade:     item.shade ?? '',
+                        price:     item.price ?? '',
+                        url:       item.url ?? '',
+                        note:      item.note ?? '',
                       }}
-                      onSubmit={(data) => handleEdit(item.id, data)}
+                      defaultImageUrl={item.image_url}
+                      onSubmit={(data, imageFile, imageUrl) => handleEdit(item.id, data, imageFile, imageUrl)}
                       onCancel={() => setEditingId(null)}
                       submitLabel="儲存"
                     />
@@ -449,8 +604,19 @@ export default function WishlistPage() {
                 ) : (
                   <>
                     {/* 品項資訊 */}
-                    <div className="px-4 pt-3 pb-2">
-                      <div className="flex items-start justify-between gap-2">
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => navigate(`/my/wishlist/${item.id}`)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          navigate(`/my/wishlist/${item.id}`)
+                        }
+                      }}
+                      className="px-4 pt-3 pb-2 cursor-pointer hover:bg-[var(--color-primary-light)]/30 transition-colors"
+                    >
+                      <div className="flex items-start gap-3">
                         <div className="flex-1 min-w-0">
                           {item.brand && (
                             <p className="text-xs text-[var(--color-text-muted)] mb-0.5">{item.brand}</p>
@@ -499,6 +665,11 @@ export default function WishlistPage() {
                             <p className="text-xs text-[var(--color-text-muted)] mt-1.5 leading-relaxed">{item.note}</p>
                           )}
                         </div>
+                        {item.image_url && (
+                          <div className="flex-shrink-0 w-16 h-16 rounded-xl overflow-hidden bg-[var(--color-bg-muted)]">
+                            <img src={item.image_url} alt="" className="w-full h-full object-cover" />
+                          </div>
+                        )}
                       </div>
                     </div>
 

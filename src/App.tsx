@@ -14,6 +14,7 @@ import AestheticFormPage from "@/pages/mypage/AestheticFormPage";
 import AestheticDetailPage from "@/pages/mypage/AestheticDetailPage";
 import ProfilePage from "@/pages/mypage/ProfilePage";
 import WishlistPage from "@/pages/wishlist/WishlistPage";
+import WishlistDetailPage from "@/pages/wishlist/WishlistDetailPage";
 import CategoriesPage from "@/pages/mypage/CategoriesPage";
 import MedicationListPage from "@/pages/medications/MedicationListPage";
 import MedicationDetailPage from "@/pages/medications/MedicationDetailPage";
@@ -45,6 +46,7 @@ export default function App() {
             />
             <Route path="my/profile" element={<ProfilePage />} />
             <Route path="my/wishlist" element={<WishlistPage />} />
+            <Route path="my/wishlist/:id" element={<WishlistDetailPage />} />
             <Route path="my/categories" element={<CategoriesPage />} />
             <Route path="my/medications" element={<MedicationListPage />} />
             <Route path="my/medications/new" element={<MedicationFormPage />} />

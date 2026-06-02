@@ -1,15 +1,14 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
-import { getItemById, deleteItem, updateDisposalStatus, updateItemFlag } from '@/lib/supabase/items'
+import { getItemById, deleteItem, updateDisposalStatus, updateItemFlag, createItem } from '@/lib/supabase/items'
 import { QuickClassify } from '@/components/ui/QuickClassify'
 import { ExpiryBadge, SensitiveBadge, PriceBadge, DisposalBadge } from '@/components/ui/Badge'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { Lightbox } from '@/components/ui/Lightbox'
 import { getExpiryLevel } from '@/utils/expiry'
-import { useCategories } from '@/contexts/CategoriesContext'
 import { useToast } from '@/components/ui/Toast'
 import { format, parseISO } from 'date-fns'
-import { Sparkle, Droplets, Eye, EyeOff, Trash2, RotateCcw, Heart, Zap } from 'lucide-react'
+import { Eye, EyeOff, Trash2, RotateCcw, Heart, Zap, Copy } from 'lucide-react'
 import type { Item, DisposalStatus } from '@/types/database'
 function fmt(d: string | null) {
   if (!d) return '—'
@@ -28,10 +27,10 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
 export default function ItemDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { getCategoryLabel } = useCategories()
   const [item, setItem] = useState<Item | null>(null)
   const [loading, setLoading] = useState(true)
   const [deleting, setDeleting] = useState(false)
+  const [duplicating, setDuplicating] = useState(false)
   const [lightboxOpen, setLightboxOpen] = useState(false)
   const [statusUpdating, setStatusUpdating] = useState(false)
   const [flagConfirm, setFlagConfirm] = useState<'is_favorite' | 'is_dud' | null>(null)
@@ -93,6 +92,25 @@ export default function ItemDetailPage() {
     navigate('/items', { replace: true })
   }
 
+  async function handleDuplicate() {
+    if (!item) return
+    setDuplicating(true)
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { id: _id, seq_no: _seq, created_at: _created, updated_at: _updated, ...rest } = item
+    const { data: newItem, error } = await createItem({
+      ...rest,
+      disposal_status: 'kept',
+      is_favorite: false,
+      is_dud: false,
+      rating: null,
+      review: null,
+    })
+    setDuplicating(false)
+    if (error || !newItem) { showToast('複製失敗', 'error'); return }
+    showToast('已複製，請修改需要調整的欄位')
+    navigate(`/items/${newItem.id}/edit`)
+  }
+
   if (loading) {
     return (
       <div className="space-y-4">
@@ -132,6 +150,14 @@ export default function ItemDetailPage() {
             title={item.is_dud ? '取消雷品' : '標記雷品'}
           >
             <Zap size={16} strokeWidth={item.is_dud ? 0 : 1.5} fill={item.is_dud ? 'var(--color-accent)' : 'none'} className={item.is_dud ? 'text-[var(--color-accent)]' : 'text-[var(--color-text-muted)]'} />
+          </button>
+          <button
+            onClick={handleDuplicate}
+            disabled={duplicating}
+            className="w-9 h-9 flex items-center justify-center rounded-full border border-[var(--color-border)] text-[var(--color-text-muted)] min-h-0 min-w-0 hover:border-[var(--color-text-muted)] transition-colors disabled:opacity-40"
+            title="複製此品項"
+          >
+            <Copy size={15} strokeWidth={1.5} />
           </button>
           <Link
             to={`/items/${id}/edit`}

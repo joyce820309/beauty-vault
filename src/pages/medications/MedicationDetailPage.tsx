@@ -26,44 +26,7 @@ const itemSchema = z.object({
 })
 type ItemFormData = z.infer<typeof itemSchema>
 
-// ---------- 圖片上傳格 ----------
-function ImageSlot({
-  label, url, onChange, onClear,
-}: {
-  label: string
-  url: string | null
-  onChange: (file: File) => void
-  onClear: () => void
-}) {
-  return (
-    <div className="flex-1">
-      <p className="text-xs text-[var(--color-text-muted)] mb-1">{label}</p>
-      <label className="block cursor-pointer">
-        {url ? (
-          <div className="relative aspect-[3/4] rounded-xl overflow-hidden bg-[var(--color-bg-muted)]">
-            <img src={url} alt={label} className="w-full h-full object-cover" />
-            <button
-              type="button"
-              onClick={(e) => { e.preventDefault(); onClear() }}
-              className="absolute top-1.5 right-1.5 w-6 h-6 bg-black/50 text-white rounded-full flex items-center justify-center min-h-0 min-w-0"
-            >
-              <X size={12} strokeWidth={2} />
-            </button>
-          </div>
-        ) : (
-          <div className="aspect-[3/4] rounded-xl border-2 border-dashed border-[var(--color-border)] flex flex-col items-center justify-center gap-1.5 text-[var(--color-text-muted)] hover:border-[var(--color-primary)] transition-colors bg-[var(--color-bg-muted)]">
-            <Camera size={22} strokeWidth={1.5} />
-            <span className="text-xs">上傳</span>
-          </div>
-        )}
-        <input type="file" accept="image/*" className="hidden" onChange={(e) => {
-          const f = e.target.files?.[0]
-          if (f) onChange(f)
-        }} />
-      </label>
-    </div>
-  )
-}
+type ImageEntry = { url: string; file?: File }
 
 // ---------- 藥品新增 / 編輯表單 ----------
 function MedicationItemForm({
@@ -79,10 +42,12 @@ function MedicationItemForm({
 }) {
   const { showToast } = useToast()
   const [submitting, setSubmitting] = useState(false)
-  const [frontUrl, setFrontUrl] = useState<string | null>(editing?.image_front_url ?? null)
-  const [backUrl, setBackUrl] = useState<string | null>(editing?.image_back_url ?? null)
-  const [frontFile, setFrontFile] = useState<File | null>(null)
-  const [backFile, setBackFile] = useState<File | null>(null)
+  const [images, setImages] = useState<ImageEntry[]>(() => {
+    if (editing?.image_urls?.length) return editing.image_urls.map(url => ({ url }))
+    return [editing?.image_front_url, editing?.image_back_url]
+      .filter(Boolean)
+      .map(url => ({ url: url! }))
+  })
 
   const { register, handleSubmit, formState: { errors } } = useForm<ItemFormData>({
     resolver: zodResolver(itemSchema),
@@ -93,28 +58,33 @@ function MedicationItemForm({
     },
   })
 
+  function addImage(file: File) {
+    setImages(prev => [...prev, { url: URL.createObjectURL(file), file }])
+  }
+  function removeImage(index: number) {
+    setImages(prev => prev.filter((_, i) => i !== index))
+  }
+
   const onValid = async (data: ItemFormData) => {
     setSubmitting(true)
-    let newFrontUrl = frontUrl
-    let newBackUrl = backUrl
-
-    if (frontFile) {
-      const url = await uploadMedicationImage(frontFile, 'front')
-      if (url) newFrontUrl = url
-      else showToast('正面圖片上傳失敗', 'error')
-    }
-    if (backFile) {
-      const url = await uploadMedicationImage(backFile, 'back')
-      if (url) newBackUrl = url
-      else showToast('背面圖片上傳失敗', 'error')
+    const uploadedUrls: string[] = []
+    for (const img of images) {
+      if (img.file) {
+        const url = await uploadMedicationImage(img.file)
+        if (url) uploadedUrls.push(url)
+        else { showToast('部分圖片上傳失敗', 'error'); setSubmitting(false); return }
+      } else {
+        uploadedUrls.push(img.url)
+      }
     }
 
     const payload = {
       name: data.name,
       ingredients: data.ingredients || null,
       note: data.note || null,
-      image_front_url: newFrontUrl,
-      image_back_url: newBackUrl,
+      image_urls: uploadedUrls,
+      image_front_url: null as string | null,
+      image_back_url: null as string | null,
     }
 
     if (editing) {
@@ -128,15 +98,6 @@ function MedicationItemForm({
     }
     setSubmitting(false)
     onDone()
-  }
-
-  function handleFrontFile(file: File) {
-    setFrontFile(file)
-    setFrontUrl(URL.createObjectURL(file))
-  }
-  function handleBackFile(file: File) {
-    setBackFile(file)
-    setBackUrl(URL.createObjectURL(file))
   }
 
   return (
@@ -163,24 +124,33 @@ function MedicationItemForm({
         {errors.name && <p className="text-xs font-medium mt-1" style={{ color: 'var(--color-primary-dark)' }}>{errors.name.message}</p>}
       </div>
 
-      {/* 圖片正面 + 背面 */}
+      {/* 藥品圖片（可多張） */}
       <div>
-        <p className="text-xs text-[var(--color-text-muted)] mb-2">藥品圖片</p>
-        <div className="flex gap-3">
-          <ImageSlot
-            label="正面"
-            url={frontUrl}
-            onChange={handleFrontFile}
-            onClear={() => { setFrontUrl(null); setFrontFile(null) }}
-          />
-          <ImageSlot
-            label="背面"
-            url={backUrl}
-            onChange={handleBackFile}
-            onClear={() => { setBackUrl(null); setBackFile(null) }}
-          />
-          {/* 佔位讓兩欄不要撐太寬 */}
-          <div className="flex-1" />
+        <p className="text-xs text-[var(--color-text-muted)] mb-2">藥品圖片 <span className="opacity-60">（可多張）</span></p>
+        <div className="flex gap-2 flex-wrap">
+          {images.map((img, idx) => (
+            <div key={idx} className="relative w-20 h-24 rounded-xl overflow-hidden bg-[var(--color-bg-muted)] flex-shrink-0">
+              <img src={img.url} alt="" className="w-full h-full object-cover" />
+              <button
+                type="button"
+                onClick={() => removeImage(idx)}
+                className="absolute top-1 right-1 w-5 h-5 bg-black/50 text-white rounded-full flex items-center justify-center min-h-0 min-w-0"
+              >
+                <X size={10} strokeWidth={2} />
+              </button>
+            </div>
+          ))}
+          <label className="cursor-pointer">
+            <div className="w-20 h-24 rounded-xl border-2 border-dashed border-[var(--color-border)] flex flex-col items-center justify-center gap-1.5 text-[var(--color-text-muted)] hover:border-[var(--color-primary)] transition-colors bg-[var(--color-bg-muted)]">
+              <Camera size={20} strokeWidth={1.5} />
+              <span className="text-xs">新增</span>
+            </div>
+            <input type="file" accept="image/*" className="hidden" onChange={(e) => {
+              const f = e.target.files?.[0]
+              if (f) addImage(f)
+              e.target.value = ''
+            }} />
+          </label>
         </div>
       </div>
 
@@ -230,7 +200,9 @@ function MedicationItemCard({
   onDelete: () => void
   onImageClick: (urls: string[], index: number) => void
 }) {
-  const images = [item.image_front_url, item.image_back_url].filter(Boolean) as string[]
+  const images = item.image_urls?.length
+    ? item.image_urls
+    : [item.image_front_url, item.image_back_url].filter(Boolean) as string[]
 
   return (
     <div className="border border-[var(--color-border)] rounded-2xl bg-[var(--color-bg-card)] overflow-hidden">
@@ -249,7 +221,7 @@ function MedicationItemCard({
 
         {/* 圖片 */}
         {images.length > 0 && (
-          <div className="flex gap-2 mb-3">
+          <div className="flex gap-2 mb-3 flex-wrap">
             {images.map((url, idx) => (
               <button
                 key={idx}
@@ -257,13 +229,9 @@ function MedicationItemCard({
                 onClick={() => onImageClick(images, idx)}
                 className="w-16 h-20 rounded-lg overflow-hidden bg-[var(--color-bg-muted)] flex-shrink-0 min-h-0 min-w-0 hover:opacity-80 transition-opacity"
               >
-                <img src={url} alt={idx === 0 ? '正面' : '背面'} className="w-full h-full object-cover" />
+                <img src={url} alt="" className="w-full h-full object-cover" />
               </button>
             ))}
-            <div className="flex flex-col justify-end">
-              {item.image_front_url && <span className="text-xs text-[var(--color-text-muted)] mb-0.5">正</span>}
-              {item.image_back_url && <span className="text-xs text-[var(--color-text-muted)]">背</span>}
-            </div>
           </div>
         )}
 

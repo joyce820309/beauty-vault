@@ -52,7 +52,6 @@ export function QuickClassify({ item, onUpdated }: Props) {
     setSaving(false)
   }
 
-  const typeLabel = item.item_type === 'makeup' ? '化妝品' : item.item_type === 'skincare' ? '保養品' : null
   const catLabel = getCategoryLabel(item.category)
 
   return (

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { Sparkle, Droplets, Zap, Heart } from 'lucide-react'
 import type { Item } from '@/types/database'
 import { getExpiryLevel, expiryColors } from '@/utils/expiry'
@@ -25,7 +25,6 @@ export function ItemCard({ item: initialItem, onFlagChange }: { item: Item; onFl
   const isDisposed = item.disposal_status === 'disposed'
   const isWatching = item.disposal_status === 'watching'
   const expiryLevel = getExpiryLevel(item.exp_date)
-  const showUrgent = !isDisposed && !isWatching && (expiryLevel === 'urgent' || expiryLevel === 'warning')
   const brandName = item.brand_en || item.brand_zh || ''
   const [confirm, setConfirm] = useState<'favorite' | 'dud' | null>(null)
 
@@ -34,16 +33,6 @@ export function ItemCard({ item: initialItem, onFlagChange }: { item: Item; onFl
 
   const shadePrimary = item.shade_en || item.shade_zh || null
   const shadeSecondary = item.shade_en && item.shade_zh ? item.shade_zh : null
-
-  async function handleFlagToggle(flag: 'is_favorite' | 'is_dud', currentVal: boolean) {
-    if (currentVal) {
-      // 取消時需要二次確認
-      setConfirm(flag === 'is_favorite' ? 'favorite' : 'dud')
-      return
-    }
-    await updateItemFlag(item.id, flag, true)
-    onFlagChange?.(item.id, flag, true)
-  }
 
   async function confirmToggleOff() {
     const flag = confirm === 'favorite' ? 'is_favorite' : 'is_dud'

@@ -13,6 +13,7 @@ export async function createCategory(data: {
   value: string
   label: string
   sort_order: number
+  parent_id?: number | null
 }) {
   return supabase.from('categories').insert(data).select().single()
 }

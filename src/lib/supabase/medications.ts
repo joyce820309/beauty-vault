@@ -50,9 +50,10 @@ export async function deleteMedicationItem(id: number) {
   return supabase.from('medication_items').delete().eq('id', id)
 }
 
-export async function uploadMedicationImage(file: File, slot: 'front' | 'back'): Promise<string | null> {
+export async function uploadMedicationImage(file: File, slot?: string): Promise<string | null> {
   const ext = file.name.split('.').pop()
-  const path = `medications/${Date.now()}_${slot}.${ext}`
+  const suffix = slot ?? Math.random().toString(36).slice(2, 7)
+  const path = `medications/${Date.now()}_${suffix}.${ext}`
 
   // 壓縮
   const compressed = await compressImage(file)

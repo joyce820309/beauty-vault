@@ -12,6 +12,7 @@ import { supabase } from "@/lib/supabase/client";
 import { SENSITIVE_SKIN_OPTIONS } from "@/utils/categories";
 import { Camera } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
+import { addCustomOption } from "@/lib/customOptions";
 import type { ItemType, PriceType } from "@/types/database";
 
 const schema = z.object({
@@ -27,7 +28,7 @@ const schema = z.object({
   mfg_date: z.string().optional(),
   exp_date: z.string().optional(),
   price: z.coerce.number().int().nonnegative().optional().or(z.literal("")),
-  price_type: z.enum(["normal", "split", "gift"]).optional(),
+  price_type: z.enum(["normal", "split", "gift", "present"]).optional(),
   original_price: z.coerce
     .number()
     .int()
@@ -244,13 +245,21 @@ export default function ItemFormPage() {
       if (isEdit) {
         await updateItem(Number(id), payload);
         showToast("品項已更新");
-        navigate(`/items/${id}`);
       } else {
         const { data: created, error } = await createItem(payload as never);
         if (error) throw error;
         showToast("品項已新增");
         navigate(`/items/${created?.id ?? ""}`);
       }
+      // 儲存成功後，將新值加入本地建議清單
+      if (data.brand_en) addCustomOption('brand_en', data.brand_en)
+      if (data.brand_zh) addCustomOption('brand_zh', data.brand_zh)
+      if (data.name_en) addCustomOption('name_en_full',
+        data.brand_en ? `${data.brand_en} — ${data.name_en}` : data.name_en
+      )
+      if (data.name_zh) addCustomOption('name_zh', data.name_zh)
+      if (data.shade_en) addCustomOption('shade_en', data.shade_en)
+      if (isEdit) navigate(`/items/${id}`)
     } catch {
       showToast("儲存失敗，請稍後再試", "error");
     }
@@ -314,71 +323,75 @@ export default function ItemFormPage() {
           )}
         />
         {/* 品牌 */}
-        <Controller
-          name="brand_en"
-          control={control}
-          render={({ field }) => (
-            <Combobox
-              label="品牌（原文）"
-              value={field.value ?? ""}
-              onChange={field.onChange}
-              options={brands}
-              placeholder="英文 / 日文 / 韓文品牌名"
-              error={errors.brand_en?.message}
-            />
-          )}
-        />
-        <Controller
-          name="brand_zh"
-          control={control}
-          render={({ field }) => (
-            <Combobox
-              label="品牌中文備註"
-              value={field.value ?? ""}
-              onChange={field.onChange}
-              options={brandZhOptions}
-              placeholder="中文名稱（選填）"
-            />
-          )}
-        />
+        <div className="grid grid-cols-1 [@media(min-height:700px)]:grid-cols-2 gap-3">
+          <Controller
+            name="brand_en"
+            control={control}
+            render={({ field }) => (
+              <Combobox
+                label="品牌（原文）"
+                value={field.value ?? ""}
+                onChange={field.onChange}
+                options={brands}
+                placeholder="英文 / 日文 / 韓文品牌名"
+                error={errors.brand_en?.message}
+              />
+            )}
+          />
+          <Controller
+            name="brand_zh"
+            control={control}
+            render={({ field }) => (
+              <Combobox
+                label="品牌（中文）"
+                value={field.value ?? ""}
+                onChange={field.onChange}
+                options={brandZhOptions}
+                placeholder="中文名稱（選填）"
+              />
+            )}
+          />
+        </div>
 
         {/* 品名 */}
-        <Controller
-          name="name_en"
-          control={control}
-          render={({ field }) => (
-            <Combobox
-              label="品名（原文）"
-              value={field.value ?? ""}
-              onChange={(v) => {
-                const parts = v.split(" — ");
-                field.onChange(parts[1] ?? v);
-                if (parts.length === 2 && !watch("brand_en"))
-                  setValue("brand_en", parts[0]);
-              }}
-              options={names}
-              placeholder="英文 / 日文 / 韓文品名"
-              error={errors.name_en?.message}
-            />
-          )}
-        />
-        <Controller
-          name="name_zh"
-          control={control}
-          render={({ field }) => (
-            <Combobox
-              label="品名（中文）"
-              value={field.value ?? ""}
-              onChange={field.onChange}
-              options={nameZhOptions}
-              placeholder="中文名稱（選填）"
-            />
-          )}
-        />
+        <div className="grid grid-cols-1 [@media(min-height:700px)]:grid-cols-2 gap-3">
+          <Controller
+            name="name_en"
+            control={control}
+            render={({ field }) => (
+              <Combobox
+                label="品名（原文）"
+                value={field.value ?? ""}
+                onChange={(v) => {
+                  const parts = v.split(" — ");
+                  field.onChange(parts[1] ?? v);
+                  if (parts.length === 2 && !watch("brand_en"))
+                    setValue("brand_en", parts[0]);
+                }}
+                options={names}
+                placeholder="英文 / 日文 / 韓文品名"
+                error={errors.name_en?.message}
+              />
+            )}
+          />
+          <Controller
+            name="name_zh"
+            control={control}
+            render={({ field }) => (
+              <Combobox
+                label="品名（中文）"
+                value={field.value ?? ""}
+                onChange={field.onChange}
+                options={nameZhOptions}
+                placeholder="中文名稱（選填）"
+              />
+            )}
+          />
+        </div>
 
         {/* 色號（化妝品專屬） */}
         {itemType === "makeup" && (
-          <>
+          <div className="grid grid-cols-1 [@media(min-height:700px)]:grid-cols-2 gap-3">
             <Controller
               name="shade_en"
               control={control}
@@ -395,120 +408,126 @@ export default function ItemFormPage() {
             <Field label="色號（中文）">
               <Input {...register("shade_zh")} placeholder="中文色號（選填）" />
             </Field>
-          </>
+          </div>
         )}
 
-        {/* 日期 */}
-        <Controller
-          name="mfg_date"
-          control={control}
-          render={({ field }) => {
-            const mfg = field.value
-            function applyShelfLife(years: number) {
-              const base = mfg || new Date().toISOString().slice(0, 10)
-              const d = new Date(base)
-              d.setFullYear(d.getFullYear() + years)
-              setValue("exp_date", d.toISOString().slice(0, 10))
-            }
-            return (
-              <div>
-                <DatePicker
-                  label="製造日期"
-                  value={mfg ?? ""}
-                  onChange={field.onChange}
-                />
-                <div className="flex items-center gap-1.5 mt-1.5">
-                  <span className="text-xs text-[var(--color-text-muted)]">推算到期日：</span>
-                  {[3, 5].map((y) => (
-                    <button
-                      key={y}
-                      type="button"
-                      onClick={() => applyShelfLife(y)}
-                      className="px-2.5 py-0.5 rounded-full text-xs font-medium border border-[var(--color-primary)] text-[var(--color-primary)] hover:bg-[var(--color-primary-light)] transition-colors min-h-0"
-                    >
-                      +{y} 年
-                    </button>
-                  ))}
+        {/* 日期：製造日期 + 有效期限 並排 */}
+        <div className="grid grid-cols-1 [@media(min-height:700px)]:grid-cols-2 gap-3 items-start">
+          <Controller
+            name="mfg_date"
+            control={control}
+            render={({ field }) => {
+              const mfg = field.value
+              function applyShelfLife(years: number) {
+                const base = mfg || new Date().toISOString().slice(0, 10)
+                const d = new Date(base)
+                d.setFullYear(d.getFullYear() + years)
+                setValue("exp_date", d.toISOString().slice(0, 10))
+              }
+              return (
+                <div>
+                  <DatePicker
+                    label="製造日期"
+                    value={mfg ?? ""}
+                    onChange={field.onChange}
+                  />
+                  <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                    <span className="text-xs text-[var(--color-text-muted)]">推算到期日：</span>
+                    {[3, 5].map((y) => (
+                      <button
+                        key={y}
+                        type="button"
+                        onClick={() => applyShelfLife(y)}
+                        className="px-2.5 py-0.5 rounded-full text-xs font-medium border border-[var(--color-primary)] text-[var(--color-primary)] hover:bg-[var(--color-primary-light)] transition-colors min-h-0"
+                      >
+                        +{y} 年
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )
-          }}
-        />
-        <Controller
-          name="exp_date"
-          control={control}
-          render={({ field }) => {
-            const exp = field.value
-            function applyShelfLife(years: number) {
-              const base = exp || new Date().toISOString().slice(0, 10)
-              const d = new Date(base)
-              d.setFullYear(d.getFullYear() - years)
-              setValue("mfg_date", d.toISOString().slice(0, 10))
-            }
-            return (
-              <div>
-                <DatePicker
-                  label="有效期限"
-                  value={exp ?? ""}
-                  onChange={field.onChange}
-                />
-                <div className="flex items-center gap-1.5 mt-1.5">
-                  <span className="text-xs text-[var(--color-text-muted)]">反推製造日：</span>
-                  {[3, 5].map((y) => (
-                    <button
-                      key={y}
-                      type="button"
-                      onClick={() => applyShelfLife(y)}
-                      className="px-2.5 py-0.5 rounded-full text-xs font-medium border border-[var(--color-accent)] text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10 transition-colors min-h-0"
-                    >
-                      -{y} 年
-                    </button>
-                  ))}
+              )
+            }}
+          />
+          <Controller
+            name="exp_date"
+            control={control}
+            render={({ field }) => {
+              const exp = field.value
+              function applyShelfLife(years: number) {
+                const base = exp || new Date().toISOString().slice(0, 10)
+                const d = new Date(base)
+                d.setFullYear(d.getFullYear() - years)
+                setValue("mfg_date", d.toISOString().slice(0, 10))
+              }
+              return (
+                <div>
+                  <DatePicker
+                    label="有效期限"
+                    value={exp ?? ""}
+                    onChange={field.onChange}
+                  />
+                  <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                    <span className="text-xs text-[var(--color-text-muted)]">反推製造日：</span>
+                    {[3, 5].map((y) => (
+                      <button
+                        key={y}
+                        type="button"
+                        onClick={() => applyShelfLife(y)}
+                        className="px-2.5 py-0.5 rounded-full text-xs font-medium border border-[var(--color-accent)] text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10 transition-colors min-h-0"
+                      >
+                        -{y} 年
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )
-          }}
-        />
-        <Controller
-          name="purchase_date"
-          control={control}
-          render={({ field }) => (
-            <DatePicker
-              label="購入日期"
-              value={field.value ?? ""}
-              onChange={field.onChange}
-            />
-          )}
-        />
+              )
+            }}
+          />
+        </div>
 
-        {/* 金額 */}
-        <div className="space-y-2">
-          <label className="block text-sm font-medium text-[var(--color-text)]">
-            購入金額（NTD）
-          </label>
+        {/* 購入日期 + 購入金額 並排 */}
+        <div className="grid grid-cols-1 [@media(min-height:700px)]:grid-cols-2 gap-3 items-start">
+          <Controller
+            name="purchase_date"
+            control={control}
+            render={({ field }) => (
+              <DatePicker
+                label="購入日期"
+                value={field.value ?? ""}
+                onChange={field.onChange}
+              />
+            )}
+          />
 
-          {/* 價格類型標籤 */}
-          <div className="flex gap-2">
-            {(
-              [
-                { value: "normal", label: "一般" },
-                { value: "split", label: "組合價" },
-                { value: "gift", label: "贈品" },
-              ] as const
-            ).map((t) => (
-              <button
-                key={t.value}
-                type="button"
-                onClick={() => setValue("price_type", t.value)}
-                className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors min-h-0 ${
-                  priceType === t.value
-                    ? "bg-[var(--color-primary)] text-white border-[var(--color-primary)]"
-                    : "bg-[var(--color-bg-card)] text-[var(--color-text-muted)] border-[var(--color-border)]"
-                }`}
-              >
-                {t.label}
-              </button>
-            ))}
+          {/* 金額 */}
+          <div className="space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <label className="text-sm font-medium text-[var(--color-text)] whitespace-nowrap">
+              購入金額（NTD）
+            </label>
+            <div className="flex gap-1.5">
+              {(
+                [
+                  { value: "normal",  label: "一般" },
+                  { value: "split",   label: "組合價" },
+                  { value: "gift",    label: "贈品" },
+                  { value: "present", label: "禮物" },
+                ] as const
+              ).map((t) => (
+                <button
+                  key={t.value}
+                  type="button"
+                  onClick={() => setValue("price_type", t.value)}
+                  className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors min-h-0 ${
+                    priceType === t.value
+                      ? "bg-[var(--color-primary)] text-white border-[var(--color-primary)]"
+                      : "bg-[var(--color-bg-card)] text-[var(--color-text-muted)] border-[var(--color-border)]"
+                  }`}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           {priceType !== "gift" && (
@@ -652,6 +671,7 @@ export default function ItemFormPage() {
             </p>
           )}
         </div>
+        </div>{/* end 購入日期 + 購入金額 grid */}
 
         {/* 圖片 */}
         <Field label="產品圖片">

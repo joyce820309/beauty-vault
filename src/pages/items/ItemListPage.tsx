@@ -25,7 +25,7 @@ const STATUS_OPTIONS: { key: StatusKey; label: string; color?: string }[] = [
   { key: 'watching', label: '觀察中', color: 'var(--color-accent)' },
   { key: 'disposed', label: '已丟棄', color: 'var(--color-text-muted)' },
 ]
-type SortKey = 'created_at' | 'purchase_date' | 'exp_date' | 'brand' | 'name' | 'rating'
+type SortKey = 'seq_no' | 'created_at' | 'purchase_date' | 'exp_date' | 'brand' | 'name' | 'rating'
 type SortDir = 'asc' | 'desc'
 
 const LS_VIEW_KEY = 'beauty-vault:items-view'
@@ -61,16 +61,16 @@ const inactiveSecondary = 'bg-[var(--color-bg-muted)] text-[var(--color-text-mut
 
 export default function ItemListPage() {
   const { items, loading, error } = useItems()
-  const { makeupCategories, skincareCategories } = useCategories()
+  const { makeupCategories, skincareCategories, makeupParents, skincareParents, getChildren } = useCategories()
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all')
-  const [categoryFilter, setCategoryFilter] = useState('all')
   const [skinFilter, setSkinFilter] = useState<SkinFilter>('all')
   const [view, setView] = useState<ViewMode>(getInitialView)
   const [sort, setSort] = useState(getInitialSort)
   const [statusFilters, setStatusFilters] = useState<Set<StatusKey>>(new Set())
   const [categoryFilters, setCategoryFilters] = useState<Set<string>>(new Set())
   const [showFilter, setShowFilter] = useState(false)
+  const [hideDisposed, setHideDisposed] = useState(true)
 
   function toggleStatus(key: StatusKey) {
     setStatusFilters(prev => {
@@ -103,12 +103,6 @@ export default function ItemListPage() {
     })
   }
 
-  const categories = typeFilter === 'makeup'
-    ? makeupCategories
-    : typeFilter === 'skincare'
-    ? skincareCategories
-    : []
-
   const filtered = useMemo(() => {
     const hasStatus = statusFilters.size > 0
     const hasCat = categoryFilters.size > 0
@@ -123,7 +117,7 @@ export default function ItemListPage() {
         })
         if (!match) return false
       } else {
-        if (item.disposal_status === 'disposed') return false
+        if (hideDisposed && item.disposal_status === 'disposed') return false
       }
       if (typeFilter !== 'all' && item.item_type !== typeFilter) return false
       // 類別篩選（多選 OR）
@@ -155,17 +149,25 @@ export default function ItemListPage() {
       } else if (key === 'rating') {
         va = a.rating ?? -1
         vb = b.rating ?? -1
+      } else if (key === 'seq_no') {
+        va = a.seq_no ?? Infinity
+        vb = b.seq_no ?? Infinity
       } else {
-        va = (a[key] as string | null) ?? ''
-        vb = (b[key] as string | null) ?? ''
+        // 日期欄位：null 永遠排在最後
+        va = (a[key] as string | null)
+        vb = (b[key] as string | null)
       }
+      // null last（不受排序方向影響）
+      if (va === null && vb === null) return 0
+      if (va === null) return 1
+      if (vb === null) return -1
       if (va < vb) return -1 * mul
       if (va > vb) return 1 * mul
       return 0
     })
 
     return list
-  }, [items, typeFilter, categoryFilters, skinFilter, search, sort, statusFilters])
+  }, [items, typeFilter, categoryFilters, skinFilter, search, sort, statusFilters, hideDisposed])
 
   const toggleBtn = (v: ViewMode, Icon: React.ElementType) => (
     <button
@@ -223,17 +225,34 @@ export default function ItemListPage() {
       {/* 類型篩選 + 篩選按鈕 */}
       <div className="flex items-center gap-2 mb-2">
         <div className="flex gap-2 flex-1 overflow-x-auto scrollbar-hide">
-          {(['all', 'makeup', 'skincare'] as const).map((t) => (
-            <button
-              key={t}
-              onClick={() => { setTypeFilter(t); setCategoryFilter('all'); setSkinFilter('all') }}
-              className={`flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-colors min-h-0 ${
-                typeFilter === t ? activeChip : inactiveChip
-              }`}
-            >
-              {t === 'all' ? '全部' : t === 'makeup' ? '化妝品' : '保養品'}
-            </button>
-          ))}
+          {([
+            { id: 'active',   label: '現有',  type: 'all'      as TypeFilter, disposed: true  },
+            { id: 'all',      label: '全部',  type: 'all'      as TypeFilter, disposed: false },
+            { id: 'makeup',   label: '化妝品', type: 'makeup'   as TypeFilter, disposed: true  },
+            { id: 'skincare', label: '保養品', type: 'skincare' as TypeFilter, disposed: true  },
+          ] as const).map(({ id, label, type, disposed }) => {
+            const isActive =
+              id === 'active'   ? (typeFilter === 'all'      && hideDisposed) :
+              id === 'all'      ? (typeFilter === 'all'      && !hideDisposed) :
+              id === 'makeup'   ? (typeFilter === 'makeup') :
+                                  (typeFilter === 'skincare')
+            return (
+              <button
+                key={id}
+                onClick={() => {
+                  setTypeFilter(type)
+                  setHideDisposed(disposed)
+                  setCategoryFilters(new Set())
+                  setSkinFilter('all')
+                }}
+                className={`flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-colors min-h-0 ${
+                  isActive ? activeChip : inactiveChip
+                }`}
+              >
+                {label}
+              </button>
+            )
+          })}
         </div>
 
         {/* 篩選按鈕 */}
@@ -285,33 +304,82 @@ export default function ItemListPage() {
             </div>
           </div>
 
-          {/* 類別（多選，所有類別，不限類型） */}
+          {/* 類別（按大類分組，多選） */}
           {(() => {
-            const allCats = [...makeupCategories, ...skincareCategories]
-            const visibleCats = typeFilter !== 'all'
-              ? (typeFilter === 'makeup' ? makeupCategories : skincareCategories)
-              : allCats
-            return visibleCats.length > 0 ? (
+            const parents  = typeFilter === 'makeup' ? makeupParents  : typeFilter === 'skincare' ? skincareParents  : [...makeupParents, ...skincareParents]
+            const flatLeafs = typeFilter === 'makeup' ? makeupCategories : typeFilter === 'skincare' ? skincareCategories : [...makeupCategories, ...skincareCategories]
+            if (flatLeafs.length === 0) return null
+
+            function toggleParent(parent: typeof parents[0]) {
+              const kids = getChildren(parent.id)
+              if (kids.length === 0) return
+              const allActive = kids.every(k => categoryFilters.has(k.value))
+              setCategoryFilters(prev => {
+                const next = new Set(prev)
+                kids.forEach(k => allActive ? next.delete(k.value) : next.add(k.value))
+                return next
+              })
+            }
+
+            return (
               <div>
-                <p className="text-xs text-[var(--color-text-muted)] mb-1.5 font-medium">類別 <span className="opacity-60">（可多選）</span></p>
-                <div className="flex gap-1.5 flex-wrap">
-                  {visibleCats.map((c) => {
-                    const active = categoryFilters.has(c.value)
-                    return (
-                      <button
-                        key={c.value}
-                        onClick={() => toggleCategory(c.value)}
+                <p className="text-xs text-[var(--color-text-muted)] mb-1.5 font-medium">類別 <span className="opacity-60">（可多選，點大類選整組）</span></p>
+                {parents.length > 0 ? (
+                  <div className="space-y-2">
+                    {parents.map(parent => {
+                      const kids = getChildren(parent.id)
+                      if (kids.length === 0) return null
+                      const allActive = kids.every(k => categoryFilters.has(k.value))
+                      const someActive = kids.some(k => categoryFilters.has(k.value))
+                      return (
+                        <div key={parent.id}>
+                          <button
+                            onClick={() => toggleParent(parent)}
+                            className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold transition-colors min-h-0 mb-1 ${
+                              allActive ? 'bg-[var(--color-text)] text-white' :
+                              someActive ? 'bg-[var(--color-text)]/30 text-[var(--color-text)]' :
+                              'text-[var(--color-text-muted)]'
+                            }`}
+                          >
+                            {parent.label}
+                          </button>
+                          <div className="flex gap-1.5 flex-wrap pl-1">
+                            {kids.map(c => (
+                              <button key={c.value} onClick={() => toggleCategory(c.value)}
+                                className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors min-h-0 ${
+                                  categoryFilters.has(c.value) ? activeSecondary : inactiveSecondary
+                                }`}>
+                                {c.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )
+                    })}
+                    {/* 未分組子類 */}
+                    {flatLeafs.filter(c => !parents.some(p => p.id === c.parent_id)).map(c => (
+                      <button key={c.value} onClick={() => toggleCategory(c.value)}
                         className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors min-h-0 ${
-                          active ? activeSecondary : inactiveSecondary
-                        }`}
-                      >
+                          categoryFilters.has(c.value) ? activeSecondary : inactiveSecondary
+                        }`}>
                         {c.label}
                       </button>
-                    )
-                  })}
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex gap-1.5 flex-wrap">
+                    {flatLeafs.map(c => (
+                      <button key={c.value} onClick={() => toggleCategory(c.value)}
+                        className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors min-h-0 ${
+                          categoryFilters.has(c.value) ? activeSecondary : inactiveSecondary
+                        }`}>
+                        {c.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
-            ) : null
+            )
           })()}
 
           {/* 敏感肌（保養品才顯示） */}
