@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { Plus, Search, X, AlertTriangle, Inbox, LayoutGrid, Table2 } from 'lucide-react'
+import { Plus, Search, X, AlertTriangle, Inbox, LayoutGrid, Table2, ArrowUpDown, ArrowUp, ArrowDown, SlidersHorizontal } from 'lucide-react'
 import { useItems } from '@/hooks/useItems'
 import { ItemCard } from '@/components/ui/ItemCard'
 import { ItemTable } from '@/components/ui/ItemTable'
@@ -8,13 +8,46 @@ import { ItemCardSkeleton } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { SENSITIVE_SKIN_OPTIONS } from '@/utils/categories'
 import { useCategories } from '@/contexts/CategoriesContext'
+import { getExpiryLevel } from '@/utils/expiry'
 import type { ItemType, SensitiveSkinStatus } from '@/types/database'
 
 type TypeFilter = ItemType | 'all'
 type SkinFilter = SensitiveSkinStatus | 'all'
+type StatusKey = 'expired' | 'urgent' | 'warning' | 'caution' | 'notice' | 'watching' | 'disposed'
 type ViewMode = 'card' | 'table'
 
+const STATUS_OPTIONS: { key: StatusKey; label: string; color?: string }[] = [
+  { key: 'expired',  label: '已過期', color: 'var(--color-text-muted)' },
+  { key: 'urgent',   label: '緊急',   color: '#C53030' },
+  { key: 'warning',  label: '警告',   color: '#DD6B20' },
+  { key: 'caution',  label: '注意',   color: '#D69E2E' },
+  { key: 'notice',   label: '通知',   color: '#4A90A4' },
+  { key: 'watching', label: '觀察中', color: 'var(--color-accent)' },
+  { key: 'disposed', label: '已丟棄', color: 'var(--color-text-muted)' },
+]
+type SortKey = 'created_at' | 'purchase_date' | 'exp_date' | 'brand' | 'name' | 'rating'
+type SortDir = 'asc' | 'desc'
+
 const LS_VIEW_KEY = 'beauty-vault:items-view'
+const LS_SORT_KEY = 'beauty-vault:items-sort'
+
+const SORT_OPTIONS: { key: SortKey; label: string }[] = [
+  { key: 'seq_no',        label: '#' },
+  { key: 'created_at',    label: '新增日期' },
+  { key: 'purchase_date', label: '購買日期' },
+  { key: 'exp_date',      label: '到期日期' },
+  { key: 'brand',         label: '品牌' },
+  { key: 'name',          label: '品名' },
+  { key: 'rating',        label: '評分' },
+]
+
+function getInitialSort(): { key: SortKey; dir: SortDir } {
+  try {
+    const saved = localStorage.getItem(LS_SORT_KEY)
+    if (saved) return JSON.parse(saved)
+  } catch {}
+  return { key: 'created_at', dir: 'desc' }
+}
 
 function getInitialView(): ViewMode {
   try { return (localStorage.getItem(LS_VIEW_KEY) as ViewMode) ?? 'card' }
@@ -34,10 +67,40 @@ export default function ItemListPage() {
   const [categoryFilter, setCategoryFilter] = useState('all')
   const [skinFilter, setSkinFilter] = useState<SkinFilter>('all')
   const [view, setView] = useState<ViewMode>(getInitialView)
+  const [sort, setSort] = useState(getInitialSort)
+  const [statusFilters, setStatusFilters] = useState<Set<StatusKey>>(new Set())
+  const [categoryFilters, setCategoryFilters] = useState<Set<string>>(new Set())
+  const [showFilter, setShowFilter] = useState(false)
+
+  function toggleStatus(key: StatusKey) {
+    setStatusFilters(prev => {
+      const next = new Set(prev)
+      next.has(key) ? next.delete(key) : next.add(key)
+      return next
+    })
+  }
+
+  function toggleCategory(val: string) {
+    setCategoryFilters(prev => {
+      const next = new Set(prev)
+      next.has(val) ? next.delete(val) : next.add(val)
+      return next
+    })
+  }
 
   function switchView(v: ViewMode) {
     setView(v)
     try { localStorage.setItem(LS_VIEW_KEY, v) } catch {}
+  }
+
+  function handleSortKey(key: SortKey) {
+    setSort((prev) => {
+      const next = prev.key === key
+        ? { key, dir: (prev.dir === 'asc' ? 'desc' : 'asc') as SortDir }
+        : { key, dir: 'asc' as SortDir }
+      try { localStorage.setItem(LS_SORT_KEY, JSON.stringify(next)) } catch {}
+      return next
+    })
   }
 
   const categories = typeFilter === 'makeup'
@@ -47,9 +110,24 @@ export default function ItemListPage() {
     : []
 
   const filtered = useMemo(() => {
-    return items.filter((item) => {
+    const hasStatus = statusFilters.size > 0
+    const hasCat = categoryFilters.size > 0
+    const list = items.filter((item) => {
+      // 狀態篩選（多選 OR）
+      if (hasStatus) {
+        const level = getExpiryLevel(item.exp_date)
+        const match = [...statusFilters].some(s => {
+          if (s === 'disposed') return item.disposal_status === 'disposed'
+          if (s === 'watching') return item.disposal_status === 'watching'
+          return item.disposal_status !== 'disposed' && level === s
+        })
+        if (!match) return false
+      } else {
+        if (item.disposal_status === 'disposed') return false
+      }
       if (typeFilter !== 'all' && item.item_type !== typeFilter) return false
-      if (categoryFilter !== 'all' && item.category !== categoryFilter) return false
+      // 類別篩選（多選 OR）
+      if (hasCat && !categoryFilters.has(item.category ?? '')) return false
       if (skinFilter !== 'all') {
         if (item.item_type !== 'skincare') return false
         if (item.sensitive_skin_ok !== skinFilter) return false
@@ -61,7 +139,33 @@ export default function ItemListPage() {
       }
       return true
     })
-  }, [items, typeFilter, categoryFilter, skinFilter, search])
+
+    const { key, dir } = sort
+    const mul = dir === 'asc' ? 1 : -1
+
+    list.sort((a, b) => {
+      let va: string | number | null = null
+      let vb: string | number | null = null
+      if (key === 'brand') {
+        va = (a.brand_en || a.brand_zh || '').toLowerCase()
+        vb = (b.brand_en || b.brand_zh || '').toLowerCase()
+      } else if (key === 'name') {
+        va = (a.name_en || a.name_zh || '').toLowerCase()
+        vb = (b.name_en || b.name_zh || '').toLowerCase()
+      } else if (key === 'rating') {
+        va = a.rating ?? -1
+        vb = b.rating ?? -1
+      } else {
+        va = (a[key] as string | null) ?? ''
+        vb = (b[key] as string | null) ?? ''
+      }
+      if (va < vb) return -1 * mul
+      if (va > vb) return 1 * mul
+      return 0
+    })
+
+    return list
+  }, [items, typeFilter, categoryFilters, skinFilter, search, sort, statusFilters])
 
   const toggleBtn = (v: ViewMode, Icon: React.ElementType) => (
     <button
@@ -116,76 +220,175 @@ export default function ItemListPage() {
         )}
       </div>
 
-      {/* 類型篩選 */}
-      <div className="flex gap-2 mb-2 overflow-x-auto pb-1 scrollbar-hide">
-        {(['all', 'makeup', 'skincare'] as const).map((t) => (
-          <button
-            key={t}
-            onClick={() => { setTypeFilter(t); setCategoryFilter('all'); setSkinFilter('all') }}
-            className={`flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-colors min-h-0 ${
-              typeFilter === t ? activeChip : inactiveChip
-            }`}
-          >
-            {t === 'all' ? '全部' : t === 'makeup' ? '化妝品' : '保養品'}
-          </button>
-        ))}
+      {/* 類型篩選 + 篩選按鈕 */}
+      <div className="flex items-center gap-2 mb-2">
+        <div className="flex gap-2 flex-1 overflow-x-auto scrollbar-hide">
+          {(['all', 'makeup', 'skincare'] as const).map((t) => (
+            <button
+              key={t}
+              onClick={() => { setTypeFilter(t); setCategoryFilter('all'); setSkinFilter('all') }}
+              className={`flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-colors min-h-0 ${
+                typeFilter === t ? activeChip : inactiveChip
+              }`}
+            >
+              {t === 'all' ? '全部' : t === 'makeup' ? '化妝品' : '保養品'}
+            </button>
+          ))}
+        </div>
+
+        {/* 篩選按鈕 */}
+        {(() => {
+          const activeCount = statusFilters.size + categoryFilters.size + (skinFilter !== 'all' ? 1 : 0)
+          return (
+            <button
+              onClick={() => setShowFilter((v) => !v)}
+              className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium border transition-colors min-h-0 ${
+                showFilter || activeCount > 0
+                  ? 'bg-[var(--color-primary)] text-white border-[var(--color-primary)]'
+                  : 'bg-[var(--color-bg-muted)] text-[var(--color-text-muted)] border-transparent hover:text-[var(--color-text)]'
+              }`}
+            >
+              <SlidersHorizontal size={13} strokeWidth={2} />
+              篩選
+              {activeCount > 0 && (
+                <span className="bg-white/30 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center leading-none">
+                  {activeCount}
+                </span>
+              )}
+            </button>
+          )
+        })()}
       </div>
 
-      {/* 類別篩選 */}
-      {categories.length > 0 && (
-        <div className="flex gap-2 mb-2 overflow-x-auto pb-1 scrollbar-hide">
-          <button
-            onClick={() => setCategoryFilter('all')}
-            className={`flex-shrink-0 px-3 py-1 rounded-full text-xs font-medium transition-colors min-h-0 ${
-              categoryFilter === 'all' ? activeSecondary : inactiveSecondary
-            }`}
-          >
-            全部類別
-          </button>
-          {categories.map((c) => (
+      {/* 進階篩選面板 */}
+      {showFilter && (
+        <div className="bg-[var(--color-bg-muted)] rounded-2xl p-3 mb-3 space-y-3">
+          {/* 狀態（多選） */}
+          <div>
+            <p className="text-xs text-[var(--color-text-muted)] mb-1.5 font-medium">效期狀態 <span className="opacity-60">（可多選）</span></p>
+            <div className="flex gap-1.5 flex-wrap">
+              {STATUS_OPTIONS.map(({ key, label, color }) => {
+                const active = statusFilters.has(key)
+                return (
+                  <button
+                    key={key}
+                    onClick={() => toggleStatus(key)}
+                    className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors min-h-0 border ${
+                      active ? 'text-white border-transparent' : 'bg-[var(--color-bg-card)] text-[var(--color-text-muted)] border-[var(--color-border)]'
+                    }`}
+                    style={active ? { backgroundColor: color } : {}}
+                  >
+                    {label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* 類別（多選，所有類別，不限類型） */}
+          {(() => {
+            const allCats = [...makeupCategories, ...skincareCategories]
+            const visibleCats = typeFilter !== 'all'
+              ? (typeFilter === 'makeup' ? makeupCategories : skincareCategories)
+              : allCats
+            return visibleCats.length > 0 ? (
+              <div>
+                <p className="text-xs text-[var(--color-text-muted)] mb-1.5 font-medium">類別 <span className="opacity-60">（可多選）</span></p>
+                <div className="flex gap-1.5 flex-wrap">
+                  {visibleCats.map((c) => {
+                    const active = categoryFilters.has(c.value)
+                    return (
+                      <button
+                        key={c.value}
+                        onClick={() => toggleCategory(c.value)}
+                        className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors min-h-0 ${
+                          active ? activeSecondary : inactiveSecondary
+                        }`}
+                      >
+                        {c.label}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            ) : null
+          })()}
+
+          {/* 敏感肌（保養品才顯示） */}
+          {(typeFilter === 'skincare' || skinFilter !== 'all') && (
+            <div>
+              <p className="text-xs text-[var(--color-text-muted)] mb-1.5 font-medium">敏感肌</p>
+              <div className="flex gap-1.5 flex-wrap">
+                <button
+                  onClick={() => setSkinFilter('all')}
+                  className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors min-h-0 ${
+                    skinFilter === 'all' ? activeSecondary : inactiveSecondary
+                  }`}
+                >
+                  不限
+                </button>
+                {SENSITIVE_SKIN_OPTIONS.map((o) => (
+                  <button
+                    key={o.value}
+                    onClick={() => setSkinFilter(o.value)}
+                    className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors min-h-0 ${
+                      skinFilter === o.value ? activeSecondary : inactiveSecondary
+                    }`}
+                  >
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 清除全部 */}
+          {(statusFilters.size > 0 || categoryFilters.size > 0 || skinFilter !== 'all') && (
             <button
-              key={c.value}
-              onClick={() => setCategoryFilter(c.value)}
-              className={`flex-shrink-0 px-3 py-1 rounded-full text-xs font-medium transition-colors min-h-0 ${
-                categoryFilter === c.value ? activeSecondary : inactiveSecondary
-              }`}
+              onClick={() => { setStatusFilters(new Set()); setCategoryFilters(new Set()); setSkinFilter('all') }}
+              className="text-xs text-[var(--color-primary)] hover:underline min-h-0"
             >
-              {c.label}
+              清除全部篩選
             </button>
-          ))}
+          )}
         </div>
       )}
 
-      {/* 敏感肌篩選 */}
-      {(typeFilter === 'skincare' || skinFilter !== 'all') && (
-        <div className="flex gap-2 mb-3 overflow-x-auto pb-1 scrollbar-hide">
-          <button
-            onClick={() => setSkinFilter('all')}
-            className={`flex-shrink-0 px-3 py-1 rounded-full text-xs font-medium transition-colors min-h-0 ${
-              skinFilter === 'all' ? activeSecondary : inactiveSecondary
-            }`}
-          >
-            不限
-          </button>
-          {SENSITIVE_SKIN_OPTIONS.map((o) => (
-            <button
-              key={o.value}
-              onClick={() => setSkinFilter(o.value)}
-              className={`flex-shrink-0 px-3 py-1 rounded-full text-xs font-medium transition-colors min-h-0 ${
-                skinFilter === o.value ? activeSecondary : inactiveSecondary
-              }`}
-            >
-              {o.label}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* 結果數 */}
+      {/* 結果數 + 排序（卡片模式才顯示排序） */}
       {!loading && (
-        <p className="text-xs text-[var(--color-text-muted)] mb-3">
-          共 {filtered.length} 筆{items.length !== filtered.length && `（篩選自 ${items.length} 筆）`}
-        </p>
+        <div className="mb-3">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs text-[var(--color-text-muted)]">
+              共 {filtered.length} 筆{items.length !== filtered.length && `（篩選自 ${items.length} 筆）`}
+            </p>
+          </div>
+          {view === 'card' && (
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <ArrowUpDown size={12} strokeWidth={1.8} className="text-[var(--color-text-muted)] flex-shrink-0" />
+              {SORT_OPTIONS.map(({ key, label }) => {
+                const active = sort.key === key
+                return (
+                  <button
+                    key={key}
+                    onClick={() => handleSortKey(key)}
+                    className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-colors min-h-0 ${
+                      active
+                        ? 'bg-[var(--color-primary)] text-white'
+                        : 'bg-[var(--color-bg-muted)] text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
+                    }`}
+                  >
+                    {label}
+                    {active && (
+                      sort.dir === 'asc'
+                        ? <ArrowUp size={10} strokeWidth={2.5} />
+                        : <ArrowDown size={10} strokeWidth={2.5} />
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </div>
       )}
 
       {/* 列表 */}

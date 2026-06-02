@@ -1,23 +1,22 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, forwardRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Combobox } from "@/components/ui/Combobox";
-import { Select } from "@/components/ui/Select";
+import { CategorySelect } from "@/components/ui/CategorySelect";
 import { DatePicker } from "@/components/ui/DatePicker";
 import { useComboboxOptions } from "@/hooks/useComboboxOptions";
 import { createItem, getItemById, updateItem } from "@/lib/supabase/items";
 import { supabase } from "@/lib/supabase/client";
 import { SENSITIVE_SKIN_OPTIONS } from "@/utils/categories";
-import { useCategories } from "@/contexts/CategoriesContext";
 import { Camera } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 import type { ItemType, PriceType } from "@/types/database";
 
 const schema = z.object({
   item_type: z.enum(["makeup", "skincare"]),
-  category: z.string().min(1, "請選擇類別"),
+  category: z.string().optional(),
   subcategory: z.string().optional(),
   brand_zh: z.string().optional(),
   brand_en: z.string().optional(),
@@ -41,6 +40,11 @@ const schema = z.object({
   review: z.string().optional(),
   sensitive_skin_ok: z.enum(["ok", "ng", "untested"]).optional(),
   currency: z.string().optional(),
+  fragrance: z.enum(["strong", "mild", "none"]).optional(),
+  is_dud: z.boolean().optional(),
+  is_sample: z.boolean().optional(),
+  is_favorite: z.boolean().optional(),
+  volume_ml: z.coerce.number().nonnegative().optional().or(z.literal("")),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -72,21 +76,20 @@ function Field({
   );
 }
 
-function Input(
-  props: React.InputHTMLAttributes<HTMLInputElement> & { error?: string },
-) {
-  const { error, className, ...rest } = props;
-  return (
-    <input
-      {...rest}
-      className={`w-full px-3 py-2.5 rounded-xl text-sm text-[var(--color-text)] bg-[var(--color-bg-card)] focus:outline-none transition-all ${
-        error
-          ? "border-2 border-[var(--color-primary)] shadow-[0_0_0_3px_var(--color-focus-ring)]"
-          : "border border-[var(--color-border)]"
-      } ${className ?? ""}`}
-    />
-  );
-}
+const Input = forwardRef<
+  HTMLInputElement,
+  React.InputHTMLAttributes<HTMLInputElement> & { error?: string }
+>(({ error, className, ...rest }, ref) => (
+  <input
+    {...rest}
+    ref={ref}
+    className={`w-full px-3 py-2.5 rounded-xl text-sm text-[var(--color-text)] bg-[var(--color-bg-card)] focus:outline-none transition-all ${
+      error
+        ? "border-2 border-[var(--color-primary)] shadow-[0_0_0_3px_var(--color-focus-ring)]"
+        : "border border-[var(--color-border)]"
+    } ${className ?? ""}`}
+  />
+));
 
 const CURRENCIES = [
   { code: "JPY", label: "🇯🇵 JPY", rate: "0.22" },
@@ -104,7 +107,6 @@ export default function ItemFormPage() {
   const isEdit = !!id;
   const { brands, names, brandZhOptions, nameZhOptions, shadeEnOptions } =
     useComboboxOptions();
-  const { makeupCategories, skincareCategories } = useCategories();
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -132,16 +134,17 @@ export default function ItemFormPage() {
 
   const itemType = watch("item_type") as ItemType;
   const priceType = watch("price_type") as PriceType;
-  const categories =
-    itemType === "makeup" ? makeupCategories : skincareCategories;
 
   useEffect(() => {
     if (!isEdit) return;
     getItemById(Number(id)).then(({ data }) => {
       if (!data) return;
       Object.entries(data).forEach(([k, v]) => {
-        if (v !== null) setValue(k as keyof FormData, v as never);
+        if (v !== null && v !== undefined) setValue(k as keyof FormData, v as never);
       });
+      // category/item_type 即使是空值也要明確設定，避免驗證失敗
+      setValue('item_type', data.item_type ?? 'makeup');
+      setValue('category', data.category ?? '');
       if (data.image_url) setImagePreview(data.image_url);
     });
   }, [id, isEdit, setValue]);
@@ -217,17 +220,23 @@ export default function ItemFormPage() {
       brand_en: data.brand_en || null,
       name_zh: data.name_zh || null,
       name_en: data.name_en || null,
-      shade_zh: data.shade_zh || null,
-      shade_en: data.shade_en || null,
+      shade_zh: itemType === "makeup" ? (data.shade_zh || null) : null,
+      shade_en: itemType === "makeup" ? (data.shade_en || null) : null,
       mfg_date: data.mfg_date || null,
       exp_date: data.exp_date || null,
       purchase_date: data.purchase_date || null,
       note: data.note || null,
       review: data.review || null,
+      category: data.category || null,
       subcategory: data.subcategory || null,
       currency: data.currency || null,
       sensitive_skin_ok:
         itemType === "skincare" ? (data.sensitive_skin_ok ?? "untested") : null,
+      fragrance: itemType === "skincare" ? (data.fragrance ?? null) : null,
+      is_dud: data.is_dud ?? false,
+      is_sample: data.is_sample ?? false,
+      is_favorite: data.is_favorite ?? false,
+      volume_ml: data.volume_ml !== "" && data.volume_ml != null ? Number(data.volume_ml) : null,
       ...(image_url ? { image_url } : {}),
     };
 
@@ -255,6 +264,7 @@ export default function ItemFormPage() {
 
   return (
     <div>
+
       <div className="flex items-center gap-3 mb-6">
         <button
           onClick={() => navigate(-1)}
@@ -294,19 +304,15 @@ export default function ItemFormPage() {
           name="category"
           control={control}
           render={({ field }) => (
-            <Select
+            <CategorySelect
               label="類別"
               value={field.value ?? ""}
               onChange={field.onChange}
-              options={
-                categories as unknown as { value: string; label: string }[]
-              }
-              placeholder="請選擇類別"
+              itemType={itemType}
               error={errors.category?.message}
             />
           )}
         />
-
         {/* 品牌 */}
         <Controller
           name="brand_en"
@@ -370,46 +376,98 @@ export default function ItemFormPage() {
           )}
         />
 
-        {/* 色號 */}
-        <Controller
-          name="shade_en"
-          control={control}
-          render={({ field }) => (
-            <Combobox
-              label="色號（原文）"
-              value={field.value ?? ""}
-              onChange={field.onChange}
-              options={shadeEnOptions}
-              placeholder="色號名稱（選填）"
+        {/* 色號（化妝品專屬） */}
+        {itemType === "makeup" && (
+          <>
+            <Controller
+              name="shade_en"
+              control={control}
+              render={({ field }) => (
+                <Combobox
+                  label="色號（原文）"
+                  value={field.value ?? ""}
+                  onChange={field.onChange}
+                  options={shadeEnOptions}
+                  placeholder="色號名稱（選填）"
+                />
+              )}
             />
-          )}
-        />
-        <Field label="色號（中文）">
-          <Input {...register("shade_zh")} placeholder="中文色號（選填）" />
-        </Field>
+            <Field label="色號（中文）">
+              <Input {...register("shade_zh")} placeholder="中文色號（選填）" />
+            </Field>
+          </>
+        )}
 
         {/* 日期 */}
         <Controller
           name="mfg_date"
           control={control}
-          render={({ field }) => (
-            <DatePicker
-              label="製造日期"
-              value={field.value ?? ""}
-              onChange={field.onChange}
-            />
-          )}
+          render={({ field }) => {
+            const mfg = field.value
+            function applyShelfLife(years: number) {
+              const base = mfg || new Date().toISOString().slice(0, 10)
+              const d = new Date(base)
+              d.setFullYear(d.getFullYear() + years)
+              setValue("exp_date", d.toISOString().slice(0, 10))
+            }
+            return (
+              <div>
+                <DatePicker
+                  label="製造日期"
+                  value={mfg ?? ""}
+                  onChange={field.onChange}
+                />
+                <div className="flex items-center gap-1.5 mt-1.5">
+                  <span className="text-xs text-[var(--color-text-muted)]">推算到期日：</span>
+                  {[3, 5].map((y) => (
+                    <button
+                      key={y}
+                      type="button"
+                      onClick={() => applyShelfLife(y)}
+                      className="px-2.5 py-0.5 rounded-full text-xs font-medium border border-[var(--color-primary)] text-[var(--color-primary)] hover:bg-[var(--color-primary-light)] transition-colors min-h-0"
+                    >
+                      +{y} 年
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )
+          }}
         />
         <Controller
           name="exp_date"
           control={control}
-          render={({ field }) => (
-            <DatePicker
-              label="有效期限"
-              value={field.value ?? ""}
-              onChange={field.onChange}
-            />
-          )}
+          render={({ field }) => {
+            const exp = field.value
+            function applyShelfLife(years: number) {
+              const base = exp || new Date().toISOString().slice(0, 10)
+              const d = new Date(base)
+              d.setFullYear(d.getFullYear() - years)
+              setValue("mfg_date", d.toISOString().slice(0, 10))
+            }
+            return (
+              <div>
+                <DatePicker
+                  label="有效期限"
+                  value={exp ?? ""}
+                  onChange={field.onChange}
+                />
+                <div className="flex items-center gap-1.5 mt-1.5">
+                  <span className="text-xs text-[var(--color-text-muted)]">反推製造日：</span>
+                  {[3, 5].map((y) => (
+                    <button
+                      key={y}
+                      type="button"
+                      onClick={() => applyShelfLife(y)}
+                      className="px-2.5 py-0.5 rounded-full text-xs font-medium border border-[var(--color-accent)] text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10 transition-colors min-h-0"
+                    >
+                      -{y} 年
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )
+          }}
         />
         <Controller
           name="purchase_date"
@@ -630,6 +688,113 @@ export default function ItemFormPage() {
             />
           </label>
         </Field>
+
+        {/* 功能欄 */}
+        <div className="bg-[var(--color-bg-muted)] rounded-2xl px-4 py-3 space-y-3">
+          <p className="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wide">功能標記</p>
+
+          {/* 香味（保養品專屬） */}
+          {itemType === "skincare" && (
+            <div>
+              <p className="text-sm font-medium text-[var(--color-text)] mb-2">香味</p>
+              <div className="flex gap-2">
+                {([
+                  { value: "strong", label: "太香" },
+                  { value: "mild",   label: "微香" },
+                  { value: "none",   label: "無香" },
+                ] as const).map((o) => (
+                  <button
+                    key={o.value}
+                    type="button"
+                    onClick={() => setValue("fragrance", watch("fragrance") === o.value ? undefined : o.value)}
+                    className={`flex-1 py-2 rounded-xl text-sm font-medium border transition-colors min-h-0 ${
+                      watch("fragrance") === o.value ? activeType : inactiveType
+                    }`}
+                  >
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ML 數（保養品） */}
+          {itemType === "skincare" && (
+            <div>
+              <p className="text-sm font-medium text-[var(--color-text)] mb-2">容量（ml）</p>
+              <Input
+                type="number"
+                {...register("volume_ml")}
+                placeholder="例：50"
+              />
+            </div>
+          )}
+
+          {/* 最愛 */}
+          <div className="flex items-center justify-between py-1">
+            <div>
+              <p className="text-sm font-medium text-[var(--color-text)]">最愛</p>
+              <p className="text-xs text-[var(--color-text-muted)]">喜歡，下次還想買</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                const next = !watch("is_favorite")
+                setValue("is_favorite", next)
+                if (next) setValue("is_dud", false)
+              }}
+              className={`relative w-11 h-6 rounded-full transition-colors min-h-0 min-w-0 overflow-hidden ${
+                watch("is_favorite") ? "bg-[var(--color-primary)]" : "bg-[var(--color-border)]"
+              }`}
+            >
+              <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all duration-200 ${
+                watch("is_favorite") ? "left-[22px]" : "left-0.5"
+              }`} />
+            </button>
+          </div>
+
+          {/* 雷品 */}
+          <div className="flex items-center justify-between py-1">
+            <div>
+              <p className="text-sm font-medium text-[var(--color-text)]">雷品</p>
+              <p className="text-xs text-[var(--color-text-muted)]">踩雷，不推薦</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                const next = !watch("is_dud")
+                setValue("is_dud", next)
+                if (next) setValue("is_favorite", false)
+              }}
+              className={`relative w-11 h-6 rounded-full transition-colors min-h-0 min-w-0 overflow-hidden ${
+                watch("is_dud") ? "bg-[var(--color-accent)]" : "bg-[var(--color-border)]"
+              }`}
+            >
+              <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all duration-200 ${
+                watch("is_dud") ? "left-[22px]" : "left-0.5"
+              }`} />
+            </button>
+          </div>
+
+          {/* 小樣 */}
+          <div className="flex items-center justify-between py-1">
+            <div>
+              <p className="text-sm font-medium text-[var(--color-text)]">小樣</p>
+              <p className="text-xs text-[var(--color-text-muted)]">試用品、隨贈樣品</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setValue("is_sample", !watch("is_sample"))}
+              className={`relative w-11 h-6 rounded-full transition-colors min-h-0 min-w-0 overflow-hidden ${
+                watch("is_sample") ? "bg-[var(--color-accent)]" : "bg-[var(--color-border)]"
+              }`}
+            >
+              <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all duration-200 ${
+                watch("is_sample") ? "left-[22px]" : "left-0.5"
+              }`} />
+            </button>
+          </div>
+        </div>
 
         {/* 備註 */}
         <Field label="備註">

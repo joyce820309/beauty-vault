@@ -15,6 +15,9 @@ import AestheticDetailPage from "@/pages/mypage/AestheticDetailPage";
 import ProfilePage from "@/pages/mypage/ProfilePage";
 import WishlistPage from "@/pages/wishlist/WishlistPage";
 import CategoriesPage from "@/pages/mypage/CategoriesPage";
+import MedicationListPage from "@/pages/medications/MedicationListPage";
+import MedicationDetailPage from "@/pages/medications/MedicationDetailPage";
+import MedicationFormPage from "@/pages/medications/MedicationFormPage";
 import { CategoriesProvider } from "@/contexts/CategoriesContext";
 
 export default function App() {
@@ -43,6 +46,10 @@ export default function App() {
             <Route path="my/profile" element={<ProfilePage />} />
             <Route path="my/wishlist" element={<WishlistPage />} />
             <Route path="my/categories" element={<CategoriesPage />} />
+            <Route path="my/medications" element={<MedicationListPage />} />
+            <Route path="my/medications/new" element={<MedicationFormPage />} />
+            <Route path="my/medications/:id" element={<MedicationDetailPage />} />
+            <Route path="my/medications/:id/edit" element={<MedicationFormPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>

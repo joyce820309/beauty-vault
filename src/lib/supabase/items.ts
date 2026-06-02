@@ -76,11 +76,29 @@ export async function getExpiryItems() {
     .order('exp_date', { ascending: true })
 }
 
-export async function updateDisposalStatus(id: number, status: 'kept' | 'disposed') {
+export async function updateDisposalStatus(id: number, status: 'kept' | 'disposed' | 'watching') {
   return supabase
     .from('items')
     .update({ disposal_status: status })
     .eq('id', id)
     .select()
     .single()
+}
+
+export async function updateItemFlag(id: number, flag: 'is_favorite' | 'is_dud', value: boolean) {
+  // 互斥：設 is_favorite=true 時清除 is_dud，反之亦然
+  const update: Record<string, boolean> = { [flag]: value }
+  if (value) {
+    if (flag === 'is_favorite') update.is_dud = false
+    if (flag === 'is_dud') update.is_favorite = false
+  }
+  return supabase.from('items').update(update).eq('id', id).select().single()
+}
+
+export async function getFavoriteItems() {
+  return supabase
+    .from('items')
+    .select('*')
+    .eq('is_favorite', true)
+    .order('seq_no', { ascending: true })
 }

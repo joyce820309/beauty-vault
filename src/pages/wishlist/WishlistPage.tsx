@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Plus, Trash2, ExternalLink, ShoppingBag, Check, Pencil, X } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Plus, Trash2, ExternalLink, ShoppingBag, Check, Pencil, X, Heart, Zap } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -7,6 +8,8 @@ import {
   getWishlist, createWishlistItem,
   updateWishlistItem, deleteWishlistItem,
 } from '@/lib/supabase/wishlist'
+import { getFavoriteItems } from '@/lib/supabase/items'
+import type { Item } from '@/types/database'
 import { useToast } from '@/components/ui/Toast'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
@@ -82,6 +85,7 @@ function WishForm({
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: { price_type: 'normal', ...defaultValues },
+    mode: 'onChange',
   })
   const priceType = watch('price_type')
 
@@ -106,11 +110,6 @@ function WishForm({
           <Input {...register('name_en')} placeholder="英 / 日 / 韓文" error={!!errors.name_en} />
         </Field>
       </div>
-      {(errors.name_zh || errors.name_en) && (
-        <p className="text-xs font-medium -mt-2" style={{ color: 'var(--color-primary-dark)' }}>
-          品名中文或原文至少填一個
-        </p>
-      )}
 
       <Field label="色號">
         <Input {...register('shade')} placeholder="選填" />
@@ -231,15 +230,20 @@ function WishForm({
 export default function WishlistPage() {
   const { showToast } = useToast()
   const [items, setItems] = useState<WishlistItem[]>([])
+  const [favorites, setFavorites] = useState<Item[]>([])
   const [loading, setLoading] = useState(true)
   const [showAddForm, setShowAddForm] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
-  const [tab, setTab] = useState<'all' | 'pending' | 'purchased'>('pending')
+  const [tab, setTab] = useState<'all' | 'pending' | 'purchased' | 'favorites'>('pending')
 
   const load = useCallback(async () => {
     setLoading(true)
-    const { data } = await getWishlist()
-    setItems(data ?? [])
+    const [{ data: wishData }, { data: favData }] = await Promise.all([
+      getWishlist(),
+      getFavoriteItems(),
+    ])
+    setItems(wishData ?? [])
+    setFavorites(favData ?? [])
     setLoading(false)
   }, [])
 
@@ -303,9 +307,10 @@ export default function WishlistPage() {
   const purchasedCount = items.filter((i) => i.is_purchased).length
 
   const tabs = [
-    { key: 'pending' as const, label: '待購', count: pendingCount },
-    { key: 'purchased' as const, label: '已購', count: purchasedCount },
-    { key: 'all' as const, label: '全部', count: items.length },
+    { key: 'pending'   as const, label: '待購',   count: pendingCount },
+    { key: 'purchased' as const, label: '已購',   count: purchasedCount },
+    { key: 'all'       as const, label: '全部',   count: items.length },
+    { key: 'favorites' as const, label: '最愛',   count: favorites.length },
   ]
 
   return (
@@ -356,18 +361,55 @@ export default function WishlistPage() {
         ))}
       </div>
 
-      {/* 列表 */}
-      {loading ? (
+      {/* 最愛品項列表 */}
+      {tab === 'favorites' && !loading && (
+        favorites.length === 0 ? (
+          <EmptyState Icon={Heart} title="還沒有最愛品項" description="在品項詳情頁按 ♡ 加入最愛" />
+        ) : (
+          <div className="space-y-2">
+            {favorites.map((fav) => {
+              const name = [fav.name_en, fav.name_zh].filter(Boolean).join(' / ') || '（未命名）'
+              const brand = fav.brand_en || fav.brand_zh || ''
+              const shade = fav.shade_en || fav.shade_zh || ''
+              return (
+                <Link
+                  key={fav.id}
+                  to={`/items/${fav.id}`}
+                  className="flex items-center gap-3 px-4 py-3 border border-[var(--color-border)] rounded-2xl bg-[var(--color-bg-card)] hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-light)]/30 transition-colors"
+                >
+                  <Heart size={14} strokeWidth={0} fill="var(--color-primary)" className="flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-[var(--color-text-muted)] truncate">{brand}</p>
+                    <p className="text-sm font-medium text-[var(--color-text)] truncate">{name}</p>
+                    {shade && <p className="text-xs text-[var(--color-text-muted)] truncate">#{shade}</p>}
+                  </div>
+                  <div className="flex-shrink-0 text-right">
+                    {fav.disposal_status === 'disposed' && (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--color-bg-muted)] text-[var(--color-text-muted)]">已丟棄</span>
+                    )}
+                    {fav.is_dud && (
+                      <Zap size={13} strokeWidth={0} fill="var(--color-accent)" />
+                    )}
+                  </div>
+                </Link>
+              )
+            })}
+          </div>
+        )
+      )}
+
+      {/* Wishlist 列表 */}
+      {tab !== 'favorites' && loading ? (
         <div className="space-y-3">
           {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-2xl" />)}
         </div>
-      ) : filtered.length === 0 ? (
+      ) : tab !== 'favorites' && filtered.length === 0 ? (
         <EmptyState
           Icon={ShoppingBag}
           title={tab === 'purchased' ? '還沒有已購品項' : '採購清單是空的'}
           description="點右上角「新增」加入想買的品項"
         />
-      ) : (
+      ) : tab !== 'favorites' && (
         <div className="space-y-3">
           {filtered.map((item) => {
             const isEditing = editingId === item.id
@@ -501,6 +543,7 @@ export default function WishlistPage() {
           })}
         </div>
       )}
+
       <div className="h-8" />
     </div>
   )

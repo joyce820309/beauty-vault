@@ -7,6 +7,7 @@ import {
   ShoppingBag,
   ChevronRight,
   Tag,
+  Pill,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -15,6 +16,7 @@ const menuItems: { to: string; label: string; Icon: LucideIcon }[] = [
   { to: "/my/wishlist", label: "採購清單", Icon: ShoppingBag },
   { to: "/my/skin", label: "膚況追蹤", Icon: Droplets },
   { to: "/my/aesthetic", label: "醫美紀錄", Icon: Sparkles },
+  { to: "/my/medications", label: "用藥紀錄", Icon: Pill },
   { to: "/my/categories", label: "類別管理", Icon: Tag },
   { to: "/my/profile", label: "個人檔案", Icon: User },
 ];
@@ -32,19 +34,9 @@ export default function MyPage() {
             to={to}
             className="flex items-center gap-3 p-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-card)] hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-light)] transition-colors"
           >
-            <Icon
-              size={18}
-              strokeWidth={1.5}
-              className="text-[var(--color-primary)]"
-            />
-            <span className="font-medium text-[var(--color-text)]">
-              {label}
-            </span>
-            <ChevronRight
-              size={16}
-              strokeWidth={1.5}
-              className="ml-auto text-[var(--color-text-muted)]"
-            />
+            <Icon size={18} strokeWidth={1.5} className="text-[var(--color-primary)]" />
+            <span className="font-medium text-[var(--color-text)]">{label}</span>
+            <ChevronRight size={16} strokeWidth={1.5} className="ml-auto text-[var(--color-text-muted)]" />
           </Link>
         ))}
       </div>

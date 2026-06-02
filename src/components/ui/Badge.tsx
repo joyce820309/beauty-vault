@@ -1,4 +1,4 @@
-import type { SensitiveSkinStatus } from "@/types/database";
+import type { SensitiveSkinStatus, DisposalStatus } from "@/types/database";
 
 const sensitiveLabels: Record<SensitiveSkinStatus, string> = {
   ok: "敏感肌 OK",
@@ -23,17 +23,21 @@ export function SensitiveBadge({ status }: { status: SensitiveSkinStatus }) {
 }
 
 const expiryColors: Record<string, string> = {
-  urgent: "bg-red-100 text-red-700",
+  expired: "bg-[var(--color-bg-muted)] text-[var(--color-text-muted)]",
+  urgent:  "bg-red-100 text-red-700",
   warning: "bg-orange-100 text-orange-700",
   caution: "bg-yellow-100 text-yellow-700",
-  ok: "bg-green-100 text-green-700",
+  notice:  "bg-sky-100 text-sky-700",
+  ok:      "bg-green-100 text-green-700",
 };
 
 const expiryLabels: Record<string, string> = {
-  urgent: "緊急",
+  expired: "已過期",
+  urgent:  "緊急",
   warning: "警告",
   caution: "注意",
-  ok: "正常",
+  notice:  "通知",
+  ok:      "正常",
 };
 
 export function ExpiryBadge({ level }: { level: string }) {
@@ -45,6 +49,23 @@ export function ExpiryBadge({ level }: { level: string }) {
       {expiryLabels[level]}
     </span>
   );
+}
+
+export function DisposalBadge({ status }: { status: DisposalStatus | null }) {
+  if (!status || status === 'kept') return null
+  if (status === 'watching') {
+    return (
+      <span className="inline-block text-xs px-2 py-0.5 rounded-full font-medium"
+        style={{ color: 'var(--color-accent)', backgroundColor: 'color-mix(in srgb, var(--color-accent) 12%, transparent)' }}>
+        觀察中
+      </span>
+    )
+  }
+  return (
+    <span className="inline-block text-xs px-2 py-0.5 rounded-full font-medium text-[var(--color-text-muted)] bg-[var(--color-bg-muted)]">
+      已丟棄
+    </span>
+  )
 }
 
 export function PriceBadge({

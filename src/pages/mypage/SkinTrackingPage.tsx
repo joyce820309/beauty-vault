@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronLeft, Plus, Trash2, ChevronDown, ChevronUp } from 'lucide-react'
+import { ChevronLeft, Plus, Trash2, ChevronDown, ChevronUp, Pencil, X } from 'lucide-react'
 import { Select } from '@/components/ui/Select'
 import { DatePicker } from '@/components/ui/DatePicker'
 import {
@@ -24,33 +24,93 @@ const METRICS = [
   { key: 'skin_engy', label: 'Skin ENGY' },
 ] as const
 
+// 雷達圖只用這5項，skin_engy 獨立顯示
+const RADAR_METRICS = METRICS.filter(m => m.key !== 'skin_engy')
+
 type MetricKey = typeof METRICS[number]['key']
 
 type FormData = Record<MetricKey, number> & { recorded_at: string; note: string }
 
-function Slider({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
+function MetricInput({
+  label, value, onChange, min = 0, max = 100, step = 1, displayValue,
+}: {
+  label: string
+  value: number
+  onChange: (v: number) => void
+  min?: number
+  max?: number
+  step?: number
+  displayValue?: string
+}) {
+  function adjust(delta: number) {
+    onChange(Math.min(max, Math.max(min, value + delta)))
+  }
+
   return (
-    <div className="space-y-1">
-      <div className="flex justify-between text-xs">
-        <span className="text-[var(--color-text-muted)]">{label}</span>
-        <span className="font-medium text-[var(--color-primary)]">{value}</span>
+    <div className="flex items-center justify-between gap-3">
+      <span className="text-sm text-[var(--color-text-muted)] w-24 flex-shrink-0">{label}</span>
+      <div className="flex items-center gap-1 flex-1 justify-end">
+        <button
+          type="button"
+          onClick={() => adjust(-step)}
+          disabled={value <= min}
+          className="w-8 h-8 rounded-lg border border-[var(--color-border)] text-[var(--color-text-muted)] flex items-center justify-center text-lg leading-none min-h-0 min-w-0 disabled:opacity-30 hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] transition-colors select-none"
+        >−</button>
+        <input
+          type="number"
+          min={min}
+          max={max}
+          value={value}
+          onChange={(e) => {
+            const v = Number(e.target.value)
+            if (!isNaN(v)) onChange(Math.min(max, Math.max(min, v)))
+          }}
+          className="w-14 text-center text-sm font-semibold text-[var(--color-primary)] bg-transparent border border-[var(--color-border)] rounded-lg py-1 focus:outline-none focus:border-[var(--color-primary)] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+        />
+        {displayValue && (
+          <span className="text-xs text-[var(--color-text-muted)] w-8">{displayValue}</span>
+        )}
+        <button
+          type="button"
+          onClick={() => adjust(step)}
+          disabled={value >= max}
+          className="w-8 h-8 rounded-lg border border-[var(--color-border)] text-[var(--color-text-muted)] flex items-center justify-center text-lg leading-none min-h-0 min-w-0 disabled:opacity-30 hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] transition-colors select-none"
+        >+</button>
       </div>
-      <input
-        type="range"
-        min={0}
-        max={100}
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full h-1.5 rounded-full appearance-none cursor-pointer accent-[var(--color-primary)]"
-      />
+    </div>
+  )
+}
+
+function AccumulationInput({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  const levels = [1, 2, 3, 4, 5]
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <span className="text-sm text-[var(--color-text-muted)] w-24 flex-shrink-0">累積程度</span>
+      <div className="flex gap-1.5">
+        {levels.map((lv) => (
+          <button
+            key={lv}
+            type="button"
+            onClick={() => onChange(lv)}
+            className={`w-9 h-8 rounded-lg text-xs font-semibold border transition-colors min-h-0 min-w-0 ${
+              value === lv
+                ? 'bg-[var(--color-primary)] text-white border-[var(--color-primary)]'
+                : 'border-[var(--color-border)] text-[var(--color-text-muted)] hover:border-[var(--color-primary)]'
+            }`}
+          >
+            Lv.{lv}
+          </button>
+        ))}
+      </div>
     </div>
   )
 }
 
 export default function SkinTrackingPage() {
   const navigate = useNavigate()
-  const { records, loading, addRecord, removeRecord } = useSkinRecords()
+  const { records, loading, addRecord, editRecord, removeRecord } = useSkinRecords()
   const [showForm, setShowForm] = useState(false)
+  const [editingId, setEditingId] = useState<number | null>(null)
   const [trendMetric, setTrendMetric] = useState<MetricKey>('moisture')
   const [submitting, setSubmitting] = useState(false)
   const [expandedId, setExpandedId] = useState<number | null>(null)
@@ -58,15 +118,47 @@ export default function SkinTrackingPage() {
   const { register, handleSubmit, watch, setValue, reset, control } = useForm<FormData>({
     defaultValues: {
       recorded_at: format(new Date(), 'yyyy-MM-dd'),
-      moisture: 50, sebum: 50, keratin: 50, resilience: 50, accumulation: 50, skin_engy: 50,
+      moisture: 50, sebum: 50, keratin: 50, resilience: 50, accumulation: 3, skin_engy: 50,
       note: '',
     },
   })
 
+  const editForm = useForm<FormData>({ defaultValues: {
+    recorded_at: '', moisture: 50, sebum: 50, keratin: 50, resilience: 50, accumulation: 3, skin_engy: 50, note: '',
+  } })
+
+  function startEdit(r: (typeof records)[0]) {
+    setEditingId(r.id)
+    setExpandedId(r.id)
+    editForm.reset({
+      recorded_at: r.recorded_at,
+      moisture: r.moisture ?? 50,
+      sebum: r.sebum ?? 50,
+      keratin: r.keratin ?? 50,
+      resilience: r.resilience ?? 50,
+      accumulation: r.accumulation ?? 3,
+      skin_engy: r.skin_engy ?? 50,
+      note: r.note ?? '',
+    })
+  }
+
+  const onEditSubmit = async (data: FormData) => {
+    if (!editingId) return
+    setSubmitting(true)
+    await editRecord(editingId, {
+      recorded_at: data.recorded_at,
+      moisture: data.moisture, sebum: data.sebum, keratin: data.keratin,
+      resilience: data.resilience, accumulation: data.accumulation, skin_engy: data.skin_engy,
+      note: data.note || null,
+    })
+    setEditingId(null)
+    setSubmitting(false)
+  }
+
   const latest = records[0] ?? null
   const prev = records[1] ?? null
 
-  const radarData = METRICS.map(({ key, label }) => ({
+  const radarData = RADAR_METRICS.map(({ key, label }) => ({
     metric: label,
     value: latest ? (latest[key] ?? 0) : 0,
   }))
@@ -132,15 +224,25 @@ export default function SkinTrackingPage() {
               <DatePicker label="紀錄日期" value={field.value ?? ''} onChange={field.onChange} />
             )}
           />
-          <div className="space-y-4">
-            {METRICS.map(({ key, label }) => (
-              <Slider
-                key={key}
-                label={label}
-                value={watch(key)}
-                onChange={(v) => setValue(key, v)}
-              />
-            ))}
+          <div className="space-y-3">
+            {METRICS.map(({ key, label }) =>
+              key === 'accumulation' ? (
+                <AccumulationInput
+                  key={key}
+                  value={watch(key)}
+                  onChange={(v) => setValue(key, v)}
+                />
+              ) : (
+                <MetricInput
+                  key={key}
+                  label={label}
+                  value={watch(key)}
+                  onChange={(v) => setValue(key, v)}
+                  min={0}
+                  max={100}
+                />
+              )
+            )}
           </div>
           <div>
             <label className="block text-xs text-[var(--color-text-muted)] mb-1">備註</label>
@@ -181,10 +283,51 @@ export default function SkinTrackingPage() {
         <>
           {/* 最新雷達圖 */}
           <div className="bg-[var(--color-bg-muted)] rounded-2xl p-4 mb-4">
-            <p className="text-sm font-semibold text-[var(--color-text)] mb-1">最新膚況</p>
-            <p className="text-xs text-[var(--color-text-muted)] mb-3">
-              {format(parseISO(latest!.recorded_at), 'yyyy年M月d日')}
-            </p>
+            <div className="flex items-start justify-between mb-3">
+              <div>
+                <p className="text-sm font-semibold text-[var(--color-text)]">最新膚況</p>
+                <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
+                  {format(parseISO(latest!.recorded_at), 'yyyy年M月d日')}
+                </p>
+              </div>
+              {/* Skin ENGY 圓形進度環 */}
+              {(() => {
+                const val = latest?.skin_engy ?? 0
+                const delta = getDelta('skin_engy')
+                const r = 28
+                const circ = 2 * Math.PI * r
+                const progress = circ * (1 - val / 100)
+                return (
+                  <div className="flex flex-col items-center gap-0.5">
+                    <p className="text-xs text-[var(--color-text-muted)]">Skin ENGY</p>
+                    <div className="relative w-20 h-20">
+                      <svg width="80" height="80" className="-rotate-90">
+                        {/* 背景環 */}
+                        <circle cx="40" cy="40" r={r} fill="none" stroke="var(--color-border)" strokeWidth="6" />
+                        {/* 進度環 */}
+                        <circle
+                          cx="40" cy="40" r={r}
+                          fill="none"
+                          stroke="var(--color-primary)"
+                          strokeWidth="6"
+                          strokeLinecap="round"
+                          strokeDasharray={circ}
+                          strokeDashoffset={progress}
+                        />
+                      </svg>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center">
+                        <span className="text-xl font-bold text-[var(--color-primary)] leading-none">{latest?.skin_engy ?? '—'}</span>
+                      </div>
+                    </div>
+                    {delta !== null && (
+                      <span className={`text-xs font-medium ${delta > 0 ? 'text-[var(--color-accent)]' : 'text-[var(--color-primary)]'}`}>
+                        {delta > 0 ? '↑' : '↓'}{Math.abs(delta)}
+                      </span>
+                    )}
+                  </div>
+                )
+              })()}
+            </div>
             <ResponsiveContainer width="100%" height={220}>
               <RadarChart data={radarData}>
                 <PolarGrid stroke="var(--color-border)" />
@@ -202,20 +345,22 @@ export default function SkinTrackingPage() {
               </RadarChart>
             </ResponsiveContainer>
 
-            {/* 6 指標數值 + 與上筆比較 */}
+            {/* 5 指標數值（不含 skin_engy）+ 與上筆比較 */}
             <div className="grid grid-cols-3 gap-2 mt-2">
-              {METRICS.map(({ key, label }) => {
+              {METRICS.filter(m => m.key !== 'skin_engy').map(({ key, label }) => {
                 const delta = getDelta(key)
                 return (
                   <div key={key} className="bg-[var(--color-bg-card)] rounded-xl px-3 py-2">
                     <p className="text-xs text-[var(--color-text-muted)] truncate">{label}</p>
                     <div className="flex items-baseline gap-1 mt-0.5">
                       <span className="text-lg font-semibold text-[var(--color-text)]">
-                        {latest![key] ?? '—'}
+                        {key === 'accumulation'
+                          ? (latest![key] != null ? `Lv.${latest![key]}` : '—')
+                          : (latest![key] ?? '—')}
                       </span>
                       {delta !== null && (
-                        <span className={`text-xs font-medium ${delta > 0 ? 'text-green-500' : 'text-red-400'}`}>
-                          {delta > 0 ? '↑' : '↓'}{Math.abs(delta)}
+                        <span className={`text-xs font-medium ${delta > 0 ? 'text-[var(--color-accent)]' : 'text-[var(--color-primary)]'}`}>
+                          {delta > 0 ? '↑' : '↓'}{key === 'accumulation' ? '' : Math.abs(delta)}
                         </span>
                       )}
                     </div>
@@ -270,12 +415,18 @@ export default function SkinTrackingPage() {
                         ENGY {r.skin_engy ?? '—'} · 水分 {r.moisture ?? '—'} · 皮脂 {r.sebum ?? '—'}
                       </p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); startEdit(r) }}
+                        className="p-1.5 rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-primary)] hover:bg-[var(--color-primary-light)] transition-colors min-h-0 min-w-0"
+                      >
+                        <Pencil size={13} strokeWidth={1.5} />
+                      </button>
                       <button
                         onClick={(e) => { e.stopPropagation(); if (confirm('確定刪除此紀錄？')) removeRecord(r.id) }}
-                        className="p-1.5 rounded-lg text-[var(--color-text-muted)] hover:text-red-400 hover:bg-red-50 transition-colors min-h-0 min-w-0"
+                        className="p-1.5 rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-danger)] hover:bg-[var(--color-primary-light)] transition-colors min-h-0 min-w-0"
                       >
-                        <Trash2 size={14} strokeWidth={1.5} />
+                        <Trash2 size={13} strokeWidth={1.5} />
                       </button>
                       {expandedId === r.id
                         ? <ChevronUp size={16} strokeWidth={1.5} className="text-[var(--color-text-muted)]" />
@@ -284,17 +435,56 @@ export default function SkinTrackingPage() {
                     </div>
                   </button>
                   {expandedId === r.id && (
-                    <div className="px-4 pb-4 grid grid-cols-3 gap-2">
-                      {METRICS.map(({ key, label }) => (
-                        <div key={key} className="bg-[var(--color-bg-card)] rounded-xl px-3 py-2">
-                          <p className="text-xs text-[var(--color-text-muted)]">{label}</p>
-                          <p className="text-base font-semibold text-[var(--color-text)]">{r[key] ?? '—'}</p>
-                        </div>
-                      ))}
-                      {r.note && (
-                        <div className="col-span-3 bg-[var(--color-bg-card)] rounded-xl px-3 py-2">
-                          <p className="text-xs text-[var(--color-text-muted)] mb-0.5">備註</p>
-                          <p className="text-sm text-[var(--color-text)]">{r.note}</p>
+                    <div className="px-4 pb-4">
+                      {editingId === r.id ? (
+                        /* 編輯模式 */
+                        <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-3">
+                          <Controller
+                            name="recorded_at"
+                            control={editForm.control}
+                            render={({ field }) => (
+                              <DatePicker label="紀錄日期" value={field.value ?? ''} onChange={field.onChange} />
+                            )}
+                          />
+                          {METRICS.map(({ key, label }) =>
+                            key === 'accumulation' ? (
+                              <AccumulationInput key={key} value={editForm.watch(key)} onChange={(v) => editForm.setValue(key, v)} />
+                            ) : (
+                              <MetricInput key={key} label={label} value={editForm.watch(key)} onChange={(v) => editForm.setValue(key, v)} min={0} max={100} />
+                            )
+                          )}
+                          <textarea
+                            {...editForm.register('note')}
+                            rows={2}
+                            placeholder="備註（選填）"
+                            className="w-full px-3 py-2 rounded-xl border border-[var(--color-border)] text-sm bg-[var(--color-bg-card)] text-[var(--color-text)] focus:outline-none focus:border-[var(--color-primary)] resize-none"
+                          />
+                          <div className="flex gap-2">
+                            <button type="button" onClick={() => setEditingId(null)} className="flex-1 py-2 rounded-xl border border-[var(--color-border)] text-sm text-[var(--color-text-muted)] min-h-0 flex items-center justify-center gap-1">
+                              <X size={13} strokeWidth={1.5} />取消
+                            </button>
+                            <button type="submit" disabled={submitting} className="flex-1 py-2 rounded-xl bg-[var(--color-primary)] text-white text-sm font-medium min-h-0 disabled:opacity-60">
+                              {submitting ? '儲存中…' : '儲存'}
+                            </button>
+                          </div>
+                        </form>
+                      ) : (
+                        /* 檢視模式 */
+                        <div className="grid grid-cols-3 gap-2">
+                          {METRICS.map(({ key, label }) => (
+                            <div key={key} className="bg-[var(--color-bg-card)] rounded-xl px-3 py-2">
+                              <p className="text-xs text-[var(--color-text-muted)]">{label}</p>
+                              <p className="text-base font-semibold text-[var(--color-text)]">
+                                {key === 'accumulation' ? (r[key] != null ? `Lv.${r[key]}` : '—') : (r[key] ?? '—')}
+                              </p>
+                            </div>
+                          ))}
+                          {r.note && (
+                            <div className="col-span-3 bg-[var(--color-bg-card)] rounded-xl px-3 py-2">
+                              <p className="text-xs text-[var(--color-text-muted)] mb-0.5">備註</p>
+                              <p className="text-sm text-[var(--color-text)]">{r.note}</p>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>

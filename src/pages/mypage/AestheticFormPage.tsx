@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, forwardRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ChevronLeft } from 'lucide-react'
 import { useForm, Controller } from 'react-hook-form'
@@ -39,19 +39,20 @@ function Field({ label, error, children }: { label: string; error?: string; chil
   )
 }
 
-function Input(props: React.InputHTMLAttributes<HTMLInputElement> & { error?: string }) {
-  const { error, ...rest } = props
-  return (
-    <input
-      {...rest}
-      className={`w-full px-3 py-2.5 rounded-xl text-sm text-[var(--color-text)] bg-[var(--color-bg-card)] focus:outline-none transition-all ${
-        error
-          ? 'border-2 border-[var(--color-primary)] shadow-[0_0_0_3px_var(--color-focus-ring)]'
-          : 'border border-[var(--color-border)]'
-      }`}
-    />
-  )
-}
+const Input = forwardRef<
+  HTMLInputElement,
+  React.InputHTMLAttributes<HTMLInputElement> & { error?: string }
+>(({ error, ...rest }, ref) => (
+  <input
+    {...rest}
+    ref={ref}
+    className={`w-full px-3 py-2.5 rounded-xl text-sm text-[var(--color-text)] bg-[var(--color-bg-card)] focus:outline-none transition-all ${
+      error
+        ? 'border-2 border-[var(--color-primary)] shadow-[0_0_0_3px_var(--color-focus-ring)]'
+        : 'border border-[var(--color-border)]'
+    }`}
+  />
+))
 
 export default function AestheticFormPage() {
   const { id } = useParams()

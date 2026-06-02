@@ -9,8 +9,9 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { useTheme } from '@/contexts/ThemeContext'
 
 const THEME_COLORS = {
-  light: ['#C4768A', '#D99AAC', '#EABCC8', '#F0D4DB', '#8FA3C8', '#AEBDD9', '#C8D5E8', '#9B8DB8'],
-  dark:  ['#D4899C', '#C07088', '#A85C74', '#8F4A60', '#7B98BC', '#6888A8', '#567094', '#8B7BAB'],
+  //        玫瑰       藍紫       茶金       鼠尾草     矢車菊藍   薰衣草     暖杏       霧藍
+  light: ['#C4768A', '#8B7BAB', '#B89A6A', '#7A9E8E', '#8FA3C8', '#9B8DC4', '#C4A96A', '#7A96B8'],
+  dark:  ['#D4899C', '#A090C0', '#C8AA80', '#8AB4A4', '#7B98BC', '#B0A0D8', '#D4BC80', '#8AAAC8'],
 }
 
 function SummaryCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
@@ -76,14 +77,15 @@ function PieSection({
             outerRadius={80}
             paddingAngle={2}
             dataKey="value"
+            stroke="none"
           >
             {data.map((_, idx) => (
-              <Cell key={idx} fill={colors[idx % colors.length]} />
+              <Cell key={idx} fill={colors[idx % colors.length]} stroke="none" />
             ))}
           </Pie>
           <Tooltip
             formatter={(value: number) =>
-              mode === 'count' ? `${value} 筆` : `NT$ ${value.toLocaleString()}`
+              mode === 'count' ? [`${value} 筆`, ''] : [`NT$ ${value.toLocaleString()}`, '']
             }
             contentStyle={{
               borderRadius: 12,
@@ -92,6 +94,8 @@ function PieSection({
               backgroundColor: 'var(--color-bg-card)',
               color: 'var(--color-text)',
             }}
+            labelStyle={{ color: 'var(--color-text)', fontSize: 12 }}
+            itemStyle={{ color: 'var(--color-text)' }}
           />
           <Legend
             iconType="circle"

@@ -10,6 +10,7 @@ import {
   User,
   CalendarClock,
   ShoppingBag,
+  Pill,
 } from "lucide-react";
 
 const navItems = [
@@ -21,6 +22,7 @@ const navItems = [
   { to: "/stats", label: "統計圖表", Icon: BarChart2 },
   { to: "/my/skin", label: "膚況追蹤", Icon: Droplets },
   { to: "/my/aesthetic", label: "醫美紀錄", Icon: Sparkles },
+  { to: "/my/medications", label: "用藥紀錄", Icon: Pill },
   { to: "/my/categories", label: "類別管理", Icon: Tag },
   { to: "/my/profile", label: "個人檔案", Icon: User },
 ];

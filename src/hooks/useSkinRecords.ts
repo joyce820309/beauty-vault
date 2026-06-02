@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { getSkinRecords, createSkinRecord, deleteSkinRecord } from '@/lib/supabase/skinRecords'
+import { getSkinRecords, createSkinRecord, updateSkinRecord, deleteSkinRecord } from '@/lib/supabase/skinRecords'
 import { getProfile, upsertProfile } from '@/lib/supabase/profile'
 import { useRefreshKey } from '@/contexts/RefreshContext'
 import type { SkinRecord, Profile } from '@/types/database'
@@ -23,12 +23,17 @@ export function useSkinRecords() {
     await fetch()
   }
 
+  async function editRecord(id: number, data: Omit<SkinRecord, 'id' | 'created_at'>) {
+    const { data: updated } = await updateSkinRecord(id, data)
+    if (updated) setRecords((prev) => prev.map((r) => r.id === id ? updated as SkinRecord : r))
+  }
+
   async function removeRecord(id: number) {
     await deleteSkinRecord(id)
     setRecords((prev) => prev.filter((r) => r.id !== id))
   }
 
-  return { records, loading, addRecord, removeRecord, refetch: fetch }
+  return { records, loading, addRecord, editRecord, removeRecord, refetch: fetch }
 }
 
 export function useProfile() {

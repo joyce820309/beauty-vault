@@ -3,7 +3,7 @@
 export type ItemType = 'makeup' | 'skincare'
 export type SensitiveSkinStatus = 'ok' | 'ng' | 'untested'
 export type SeasonalColor = 'spring' | 'summer' | 'autumn' | 'winter'
-export type DisposalStatus = 'kept' | 'disposed'
+export type DisposalStatus = 'kept' | 'disposed' | 'watching'
 export type PriceType = 'normal' | 'split' | 'gift'
 
 export interface Item {
@@ -31,6 +31,11 @@ export interface Item {
   price_type: PriceType | null
   original_price: number | null
   currency: string | null
+  fragrance: 'strong' | 'mild' | 'none' | null
+  is_dud: boolean | null
+  is_sample: boolean | null
+  is_favorite: boolean | null
+  volume_ml: number | null
   created_at: string
   updated_at: string
 }
@@ -81,6 +86,30 @@ export interface WishlistItem {
   note: string | null
   is_purchased: boolean
   created_at: string
+}
+
+export interface MedicationRecord {
+  id: number
+  pickup_date: string
+  reason: string
+  note: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface MedicationItem {
+  id: number
+  medication_record_id: number
+  name: string
+  ingredients: string | null
+  image_front_url: string | null
+  image_back_url: string | null
+  note: string | null
+  created_at: string
+}
+
+export type MedicationRecordWithItems = MedicationRecord & {
+  medication_items: MedicationItem[]
 }
 
 export interface AestheticSessionLog {
