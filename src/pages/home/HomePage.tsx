@@ -5,7 +5,7 @@ import { getItems } from '@/lib/supabase/items'
 import { getExpiryLevel, expiryColors, type ExpiryLevel } from '@/utils/expiry'
 import { Skeleton } from '@/components/ui/Skeleton'
 import type { Item } from '@/types/database'
-import { differenceInDays, parseISO, format } from 'date-fns'
+import { format } from 'date-fns'
 
 // 切換方案：'A' = 2×2 卡片格, 'C' = 橫向滑動卡片
 const EXPIRY_STYLE: 'A' | 'C' = 'C'
@@ -26,9 +26,6 @@ const EXPIRY_CARD_DEFS: Omit<ExpiryCardInfo, 'count'>[] = [
   { level: 'notice',  label: '通知',          sublabel: '3–6 個月', filter: 'notice'  },
 ]
 
-function getDaysLeft(expDate: string) {
-  return differenceInDays(parseISO(expDate), new Date())
-}
 
 // ── 方案 A：2×N 卡片格 ────────────────────────────────────────────
 function ExpiryGridCards({ cards }: { cards: ExpiryCardInfo[] }) {

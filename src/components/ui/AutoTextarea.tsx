@@ -6,7 +6,7 @@ interface Props extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
 
 export const AutoTextarea = forwardRef<HTMLTextAreaElement, Props>(
   ({ error, className, onChange, value, defaultValue, ...rest }, forwardedRef) => {
-    const innerRef = useRef<HTMLTextAreaElement>(null)
+    const innerRef = useRef<HTMLTextAreaElement | null>(null)
 
     // 合併 ref：同時更新 forwardedRef 和 innerRef
     function setRef(el: HTMLTextAreaElement | null) {

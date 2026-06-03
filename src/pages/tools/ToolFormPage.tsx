@@ -31,7 +31,7 @@ const schema = z.object({
   purchase_date: z.string().optional(),
   price: z.coerce.number().int().nonnegative().optional().or(z.literal('')),
   currency: z.string().optional(),
-  status: z.enum(['active', 'stored', 'retired']).default('active'),
+  status: z.enum(['active', 'stored', 'retired']),
   clean_cycle_days: z.coerce.number().int().positive().optional().or(z.literal('')),
   last_cleaned_at: z.string().optional(),
   rating: z.coerce.number().int().min(1).max(5).optional().or(z.literal('')),
@@ -77,7 +77,7 @@ export default function ToolFormPage() {
 
   const { register, handleSubmit, watch, setValue, control } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { status: 'active', sensitive_skin_ok: 'untested' },
+    defaultValues: { status: 'active' as const, sensitive_skin_ok: 'untested' },
   })
 
   const status = watch('status')
@@ -141,7 +141,7 @@ export default function ToolFormPage() {
       sensitive_skin_ok: data.sensitive_skin_ok ?? 'untested',
       is_favorite: false,
       note: data.note || null,
-      ...(image_url ? { image_url } : {}),
+      image_url: image_url ?? null,
     }
 
     try {

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
-import { ChevronLeft, Heart, CheckCircle2 } from 'lucide-react'
+import { Heart, CheckCircle2 } from 'lucide-react'
 import { getToolById, deleteTool, updateToolStatus, markCleaned, updateTool } from '@/lib/supabase/tools'
 import { NoteContent } from '@/components/ui/AutoTextarea'
 import { Skeleton } from '@/components/ui/Skeleton'

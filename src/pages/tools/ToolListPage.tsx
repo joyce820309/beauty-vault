@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { Plus, Search, X, Wrench, Heart, CheckCircle2 } from 'lucide-react'
 import { getTools, markCleaned } from '@/lib/supabase/tools'
 import { Skeleton } from '@/components/ui/Skeleton'
@@ -26,7 +26,6 @@ const STATUS_COLORS: Record<ToolStatus, string> = {
 type StatusTab = 'all' | ToolStatus
 
 export default function ToolListPage() {
-  const navigate = useNavigate()
   const { showToast } = useToast()
   const [tools, setTools] = useState<Tool[]>([])
   const [loading, setLoading] = useState(true)
