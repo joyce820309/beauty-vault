@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { Plus, Search, X, AlertTriangle, Inbox, LayoutGrid, Table2, ArrowUpDown, ArrowUp, ArrowDown, SlidersHorizontal } from 'lucide-react'
 import { useItems } from '@/hooks/useItems'
 import { ItemCard } from '@/components/ui/ItemCard'
@@ -76,7 +76,15 @@ const activeSecondary = 'bg-[var(--color-text)] text-white'
 const inactiveSecondary = 'text-[var(--color-text-muted)]'
 const inactiveCategoryStyle = { backgroundColor: 'rgba(222, 206, 213, 0.32)' }
 
+const HEALTH_LABELS: Record<string, string> = {
+  'no-category':      '顯示未設定類別的品項',
+  'no-expiry':        '顯示未設定效期的品項',
+  'no-purchase-date': '顯示未設定購入日期的品項',
+}
+
 export default function ItemListPage() {
+  const [searchParams] = useSearchParams()
+  const healthFilter = searchParams.get('filter')
   const { items, loading, error } = useItems()
   const { makeupCategories, skincareCategories, makeupParents, skincareParents, getChildren } = useCategories()
   const [search, setSearch] = useState(() => {
@@ -161,6 +169,9 @@ export default function ItemListPage() {
         const fields = [item.brand_zh, item.brand_en, item.name_zh, item.name_en, item.shade_zh, item.shade_en, item.purchase_date, item.exp_date, item.mfg_date]
         if (!fields.some((f) => f?.toLowerCase().includes(q))) return false
       }
+      if (healthFilter === 'no-category'      && item.category)      return false
+      if (healthFilter === 'no-expiry'        && item.exp_date)       return false
+      if (healthFilter === 'no-purchase-date' && item.purchase_date)  return false
       return true
     })
 
@@ -197,7 +208,7 @@ export default function ItemListPage() {
     })
 
     return list
-  }, [items, typeFilter, categoryFilters, skinFilter, search, sort, statusFilters, hideDisposed])
+  }, [items, typeFilter, categoryFilters, skinFilter, search, sort, statusFilters, hideDisposed, healthFilter])
 
   const toggleBtn = (v: ViewMode, Icon: React.ElementType) => (
     <button
@@ -231,6 +242,17 @@ export default function ItemListPage() {
           </Link>
         </div>
       </div>
+
+      {/* 健康篩選 banner */}
+      {healthFilter && HEALTH_LABELS[healthFilter] && (
+        <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-xl border border-amber-200 bg-amber-50">
+          <span className="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0" />
+          <span className="text-xs text-amber-700 flex-1">{HEALTH_LABELS[healthFilter]}</span>
+          <Link to="/items" className="text-xs text-amber-600 font-medium hover:underline min-h-0">
+            清除
+          </Link>
+        </div>
+      )}
 
       {/* 搜尋列 */}
       <div className="relative mb-3">

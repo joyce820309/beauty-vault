@@ -34,6 +34,20 @@ export async function searchItems(query: string) {
     .order('purchase_date', { ascending: false })
 }
 
+export async function getDataHealthCounts(): Promise<{ noCategory: number; noExpiry: number; noPurchaseDate: number }> {
+  const base = () => supabase.from('items').select('*', { count: 'exact', head: true }).neq('disposal_status', 'disposed')
+  const [cat, exp, pur] = await Promise.all([
+    base().is('category', null),
+    base().is('exp_date', null),
+    base().is('purchase_date', null),
+  ])
+  return {
+    noCategory:    cat.count ?? 0,
+    noExpiry:      exp.count ?? 0,
+    noPurchaseDate: pur.count ?? 0,
+  }
+}
+
 export async function getDistinctBrands() {
   return supabase
     .from('items')
