@@ -1,15 +1,26 @@
 import { useState, useMemo, useCallback, useEffect } from 'react'
-import { Link } from 'react-router-dom'
-import { CalendarClock, Search, X, RotateCcw, Trash2, Eye, EyeOff, Sparkle, Droplets } from 'lucide-react'
+import { Link, useSearchParams } from 'react-router-dom'
+import { CalendarClock, Search, X, RotateCcw, Trash2, Eye, EyeOff, Sparkle, Palette, Milk } from 'lucide-react'
 import { getExpiryItems, updateDisposalStatus, deleteItem } from '@/lib/supabase/items'
-import { getExpiryLevel, expiryColors } from '@/utils/expiry'
+import { getExpiryLevel, expiryColors, type ExpiryLevel } from '@/utils/expiry'
 import { ItemCardSkeleton } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { useToast } from '@/components/ui/Toast'
+import { useCategories } from '@/contexts/CategoriesContext'
 import type { Item, DisposalStatus } from '@/types/database'
 import { differenceInDays, parseISO, format } from 'date-fns'
 
 type Tab = 'all' | 'kept' | 'watching' | 'disposed'
+
+type LevelFilter = Exclude<ExpiryLevel, 'ok'>
+
+const LEVEL_FILTERS: { key: LevelFilter; label: string }[] = [
+  { key: 'expired', label: '已過期' },
+  { key: 'urgent',  label: '緊急' },
+  { key: 'warning', label: '警告' },
+  { key: 'caution', label: '注意' },
+  { key: 'notice',  label: '通知' },
+]
 
 const LEVEL_ORDER = { expired: 0, urgent: 1, warning: 2, caution: 3, notice: 4, ok: 5 }
 
@@ -40,11 +51,29 @@ function ExpiryStatusBadge({ expDate }: { expDate: string }) {
 
 export default function ExpiryLogPage() {
   const { showToast } = useToast()
+  const { getCategoryLabel } = useCategories()
+  const [searchParams] = useSearchParams()
   const [items, setItems] = useState<Item[]>([])
   const [loading, setLoading] = useState(true)
-  const [tab, setTab] = useState<Tab>('kept')
+  const initialTab = (searchParams.get('tab') as Tab | null)
+  const [tab, setTab] = useState<Tab>(initialTab ?? 'kept')
   const [search, setSearch] = useState('')
   const [updating, setUpdating] = useState<number | null>(null)
+
+  const initialFilter = searchParams.get('filter') as LevelFilter | null
+  const [levelFilters, setLevelFilters] = useState<Set<LevelFilter>>(
+    initialFilter && LEVEL_FILTERS.some(f => f.key === initialFilter)
+      ? new Set([initialFilter])
+      : new Set()
+  )
+
+  function toggleLevel(key: LevelFilter) {
+    setLevelFilters(prev => {
+      const next = new Set(prev)
+      next.has(key) ? next.delete(key) : next.add(key)
+      return next
+    })
+  }
 
   const loadItems = useCallback(async () => {
     setLoading(true)
@@ -88,6 +117,11 @@ export default function ExpiryLogPage() {
         return true
       })
       .filter((item) => {
+        if (levelFilters.size === 0) return true
+        const level = getExpiryLevel(item.exp_date)
+        return levelFilters.has(level as LevelFilter)
+      })
+      .filter((item) => {
         if (!search.trim()) return true
         const q = search.toLowerCase()
         return [item.brand_en, item.brand_zh, item.name_en, item.name_zh]
@@ -100,7 +134,7 @@ export default function ExpiryLogPage() {
         if (la !== lb) return la - lb
         return a.exp_date!.localeCompare(b.exp_date!)
       })
-  }, [items, tab, search])
+  }, [items, tab, search, levelFilters])
 
   const keptCount = items.filter((i) => !i.disposal_status || i.disposal_status === 'kept').length
   const watchingCount = items.filter((i) => i.disposal_status === 'watching').length
@@ -148,7 +182,7 @@ export default function ExpiryLogPage() {
       </div>
 
       {/* Tab 列 */}
-      <div className="flex gap-2 mb-4">
+      <div className="flex gap-2 mb-2">
         {tabs.map(({ key, label, count }) => (
           <button
             key={key}
@@ -167,6 +201,31 @@ export default function ExpiryLogPage() {
             </span>
           </button>
         ))}
+      </div>
+
+      {/* 效期狀態篩選（可多選） */}
+      <div className="flex gap-1.5 mb-4 flex-wrap">
+        {LEVEL_FILTERS.map(({ key, label }) => {
+          const active = levelFilters.has(key)
+          return (
+            <button
+              key={key}
+              onClick={() => toggleLevel(key)}
+              className="px-2.5 py-1 rounded-full text-xs font-medium transition-colors min-h-0 border"
+              style={active
+                ? { backgroundColor: `${expiryColors[key]}18`, color: expiryColors[key], borderColor: `${expiryColors[key]}40` }
+                : { backgroundColor: 'var(--color-bg-muted)', color: 'var(--color-text-muted)', borderColor: 'transparent' }
+              }
+            >
+              {label}
+            </button>
+          )
+        })}
+        {levelFilters.size > 0 && (
+          <button onClick={() => setLevelFilters(new Set())} className="text-xs text-[var(--color-primary)] hover:underline min-h-0 px-1">
+            清除
+          </button>
+        )}
       </div>
 
       {/* 列表 */}
@@ -201,7 +260,7 @@ export default function ExpiryLogPage() {
                   isDisposed
                     ? 'border-[var(--color-border)] opacity-50'
                     : isWatching
-                    ? 'border-blue-300/60'
+                    ? 'border-[var(--color-accent)]/40'
                     : level === 'urgent' ? 'border-[var(--color-danger)]/40'
                     : level === 'warning' ? 'border-[var(--color-warning)]/40'
                     : level === 'caution' ? 'border-[var(--color-caution)]/40'
@@ -214,18 +273,31 @@ export default function ExpiryLogPage() {
                   <div className="w-11 h-11 rounded-xl bg-[var(--color-bg-muted)] flex-shrink-0 overflow-hidden">
                     {item.image_url
                       ? <img src={item.image_url} alt={nameLine} className="w-full h-full object-cover" />
-                      : <div className="w-full h-full flex items-center justify-center text-[var(--color-text-muted)]">
-                          {item.item_type === 'makeup'
-                            ? <Sparkle size={18} strokeWidth={1.5} />
-                            : <Droplets size={18} strokeWidth={1.5} />
-                          }
-                        </div>
+                      : (() => {
+                          const isMakeup = item.item_type === 'makeup'
+                          const isSkincare = item.item_type === 'skincare'
+                          const hasType = isMakeup || isSkincare
+                          const bgStyle = !hasType ? { backgroundColor: '#f4efef' } : isMakeup ? { backgroundColor: '#fce8ee' } : { backgroundColor: '#ede8f5' }
+                          const iconColor = !hasType ? 'var(--color-text-muted)' : isMakeup ? '#c4768a' : '#9b8dc4'
+                          return (
+                            <div className="w-full h-full flex items-center justify-center" style={bgStyle}>
+                              {!hasType
+                                ? <Sparkle size={18} strokeWidth={1.5} style={{ color: iconColor }} />
+                                : isMakeup
+                                ? <Palette size={18} strokeWidth={1.5} style={{ color: iconColor }} />
+                                : <Milk size={18} strokeWidth={1.5} style={{ color: iconColor }} />
+                              }
+                            </div>
+                          )
+                        })()
                     }
                   </div>
 
                   {/* 文字 */}
                   <div className="flex-1 min-w-0">
-                    {brand && <p className="text-xs text-[var(--color-text-muted)] truncate">{brand}</p>}
+                    <p className="text-xs text-[var(--color-text-muted)] truncate">
+                      {[brand, getCategoryLabel(item.category)].filter(Boolean).join(' · ')}
+                    </p>
                     <p className={`text-sm font-medium truncate mt-0.5 ${isDisposed ? 'line-through text-[var(--color-text-muted)]' : 'text-[var(--color-text)]'}`}>
                       {nameLine}
                     </p>
@@ -239,7 +311,7 @@ export default function ExpiryLogPage() {
                     {isDisposed
                       ? <span className="text-xs text-[var(--color-text-muted)] bg-[var(--color-bg-muted)] px-2 py-0.5 rounded-full">已丟棄</span>
                       : isWatching
-                      ? <span className="text-xs font-medium text-blue-500 bg-blue-50 px-2 py-0.5 rounded-full">觀察中</span>
+                      ? <span className="text-xs font-medium px-2 py-0.5 rounded-full" style={{ color: 'var(--color-accent)', backgroundColor: 'color-mix(in srgb, var(--color-accent) 12%, transparent)' }}>觀察中</span>
                       : <ExpiryStatusBadge expDate={item.exp_date!} />
                     }
                   </div>

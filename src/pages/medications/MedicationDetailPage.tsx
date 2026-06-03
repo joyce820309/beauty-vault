@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { AutoTextarea, NoteContent } from '@/components/ui/AutoTextarea'
 import { useNavigate, useParams, Link } from 'react-router-dom'
 import { ChevronLeft, Plus, Trash2, Camera, X, Pencil } from 'lucide-react'
 import { useForm } from 'react-hook-form'
@@ -168,12 +169,7 @@ function MedicationItemForm({
       {/* 備註 */}
       <div>
         <label className="block text-xs text-[var(--color-text-muted)] mb-1">備註</label>
-        <textarea
-          {...register('note')}
-          rows={2}
-          placeholder="用法、注意事項…（選填）"
-          className="w-full px-3 py-2.5 rounded-xl border border-[var(--color-border)] text-sm text-[var(--color-text)] bg-[var(--color-bg-card)] focus:outline-none resize-none"
-        />
+        <AutoTextarea {...register('note')} placeholder="用法、注意事項…（選填）" />
       </div>
 
       <div className="flex gap-2">
@@ -247,7 +243,7 @@ function MedicationItemCard({
         {item.note && (
           <div>
             <p className="text-xs text-[var(--color-text-muted)] mb-0.5">備註</p>
-            <p className="text-sm text-[var(--color-text)] leading-relaxed">{item.note}</p>
+            <NoteContent text={item.note} />
           </div>
         )}
       </div>
@@ -342,7 +338,7 @@ export default function MedicationDetailPage() {
         </p>
         <h2 className="text-xl font-semibold text-[var(--color-text)]">{record.reason}</h2>
         {record.note && (
-          <p className="text-sm text-[var(--color-text-muted)] mt-2 leading-relaxed">{record.note}</p>
+          <NoteContent text={record.note} />
         )}
       </div>
 

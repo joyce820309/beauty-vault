@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, forwardRef } from 'react'
+import { AutoTextarea } from '@/components/ui/AutoTextarea'
 import { Link, useNavigate } from 'react-router-dom'
 import { Plus, Trash2, ExternalLink, ShoppingBag, Check, Pencil, X, Heart, Zap, Camera } from 'lucide-react'
 import { useForm } from 'react-hook-form'
@@ -268,12 +269,7 @@ function WishForm({
       </Field>
 
       <Field label="備註">
-        <textarea
-          {...register('note')}
-          rows={2}
-          placeholder="選填"
-          className="w-full px-3 py-2.5 rounded-xl border border-[var(--color-border)] text-sm text-[var(--color-text)] bg-[var(--color-bg-card)] focus:outline-none resize-none"
-        />
+        <AutoTextarea {...register('note')} placeholder="選填" />
       </Field>
 
       <div className="flex gap-2 pt-1">
@@ -634,7 +630,7 @@ export default function WishlistPage() {
                               </span>
                             )}
                             {item.price_type === 'gift' && (
-                              <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-medium">
+                              <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-[var(--color-freebie-badge-bg)] text-[var(--color-freebie-badge-text)]">
                                 贈品
                               </span>
                             )}

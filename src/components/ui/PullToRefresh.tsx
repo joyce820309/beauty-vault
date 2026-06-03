@@ -54,7 +54,7 @@ export function PullToRefresh({ onRefresh, children }: PullToRefreshProps) {
   return (
     <div
       ref={containerRef}
-      className="h-full overflow-y-auto overflow-x-hidden"
+      className="h-full overflow-y-auto overflow-x-hidden scrollbar-hide"
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}

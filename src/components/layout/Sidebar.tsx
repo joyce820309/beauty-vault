@@ -11,11 +11,13 @@ import {
   CalendarClock,
   ShoppingBag,
   Pill,
+  Wrench,
 } from "lucide-react";
 
 const navItems = [
   { to: "/", label: "首頁", Icon: Home },
   { to: "/items", label: "品項管理", Icon: Package },
+  { to: "/tools", label: "工具管理", Icon: Wrench },
   { to: "/expiry", label: "即期管理", Icon: CalendarClock },
   { to: "/my/wishlist", label: "採購清單", Icon: ShoppingBag },
   { to: "/search", label: "搜尋", Icon: Search },

@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import type { Item } from "@/types/database";
-import { getExpiryLevel } from "@/utils/expiry";
+import { getExpiryLevel, expiryColors } from "@/utils/expiry";
 import { useCategories } from "@/contexts/CategoriesContext";
 
 function fmtDate(d: string | null) {
@@ -20,18 +20,8 @@ function fmtDate(d: string | null) {
 type SortKey = "seq_no" | "brand" | "name" | "category" | "exp_date" | "price";
 type SortDir = "asc" | "desc";
 
-const expiryTextClass: Record<string, string> = {
-  urgent: "text-[var(--color-danger)] font-medium",
-  warning: "text-[var(--color-warning)]",
-  caution: "text-[var(--color-caution)]",
-  ok: "text-[var(--color-text-muted)]",
-};
 
-const priceBadge: Record<string, string> = {
-  gift: "text-[var(--color-primary)]",
-  split: "text-[var(--color-accent)]",
-  present: "text-pink-500",
-};
+
 
 function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
   if (!active)
@@ -199,20 +189,17 @@ export function ItemTable({ items }: { items: Item[] }) {
                     </span>
                   )}
                   <div className="flex gap-1 mt-0.5 flex-wrap">
-                    {!isDisposed &&
-                      !isWatching &&
-                      (expiryLevel === "urgent" ||
-                        expiryLevel === "warning") && (
-                        <span
-                          className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
-                            expiryLevel === "urgent"
-                              ? "bg-[var(--color-danger)]/10 text-[var(--color-danger)]"
-                              : "bg-[var(--color-warning)]/10 text-[var(--color-warning)]"
-                          }`}
-                        >
-                          {expiryLevel === "urgent" ? "緊急" : "警告"}
-                        </span>
-                      )}
+                    {!isDisposed && !isWatching && expiryLevel !== "ok" && (
+                      <span
+                        className="text-[10px] px-1.5 py-0.5 rounded-full font-medium"
+                        style={{
+                          color: expiryColors[expiryLevel],
+                          backgroundColor: `${expiryColors[expiryLevel]}18`,
+                        }}
+                      >
+                        {{ expired: "已過期", urgent: "緊急", warning: "警告", caution: "注意", notice: "通知" }[expiryLevel]}
+                      </span>
+                    )}
                   </div>
                 </td>
 
@@ -233,34 +220,45 @@ export function ItemTable({ items }: { items: Item[] }) {
                 </td>
 
                 {/* 效期 */}
-                <td
-                  className={`px-3 py-2.5 whitespace-nowrap ${isDisposed ? "text-[var(--color-text-muted)]" : expiryTextClass[expiryLevel]}`}
-                >
-                  {fmtDate(item.exp_date)}
+                <td className="px-3 py-2.5 whitespace-nowrap">
+                  {item.exp_date ? (
+                    <span
+                      className="inline-block text-xs px-2 py-0.5 rounded-full font-medium"
+                      style={!isDisposed && expiryLevel !== "ok" ? {
+                        color: expiryColors[expiryLevel],
+                        backgroundColor: `${expiryColors[expiryLevel]}18`,
+                      } : {
+                        color: "var(--color-text-muted)",
+                        backgroundColor: "var(--color-bg-muted)",
+                      }}
+                    >
+                      {fmtDate(item.exp_date)}
+                    </span>
+                  ) : (
+                    <span className="text-[var(--color-text-muted)]">—</span>
+                  )}
                 </td>
 
                 {/* 金額 */}
                 <td className="px-3 py-2.5 whitespace-nowrap text-[var(--color-text-muted)]">
                   {item.price_type === "gift" ? (
-                    <span className="inline-block text-xs px-2 py-0.5 rounded-full font-medium"
-                      style={{ color: '#9333ea', backgroundColor: 'color-mix(in srgb, #9333ea 10%, transparent)' }}>
+                    <span className="inline-block text-xs px-2 py-0.5 rounded-full font-medium bg-[var(--color-freebie-badge-bg)] text-[var(--color-freebie-badge-text)]">
                       贈品
                     </span>
                   ) : item.price_type === "present" ? (
-                    <span className="inline-block text-xs px-2 py-0.5 rounded-full font-medium"
-                      style={{ color: 'var(--color-primary)', backgroundColor: 'color-mix(in srgb, var(--color-primary) 12%, transparent)' }}>
-                      GIFT
+                    <span className="inline-block text-xs px-2 py-0.5 rounded-full font-semibold tracking-wide bg-[var(--color-present-badge-bg)] text-[var(--color-present-badge-text)] shadow-[0_1px_4px_rgba(168,79,104,0.16)]">
+                      禮物
                     </span>
                   ) : item.price != null ? (
                     <span>
                       ${item.price.toLocaleString()}
                       {item.price_type === "split" && (
-                        <span className={`ml-1 text-xs ${priceBadge.split}`}>
+                        <span className="ml-1 text-xs text-[var(--color-accent)]">
                           分
                         </span>
                       )}
                       {item.currency && (
-                        <span className="ml-1 text-xs text-amber-500">
+                        <span className="ml-1 text-xs text-[var(--color-text-muted)]">
                           {item.currency}
                         </span>
                       )}

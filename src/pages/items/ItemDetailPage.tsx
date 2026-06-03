@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
 import { getItemById, deleteItem, updateDisposalStatus, updateItemFlag, createItem } from '@/lib/supabase/items'
 import { QuickClassify } from '@/components/ui/QuickClassify'
+import { NoteContent } from '@/components/ui/AutoTextarea'
 import { ExpiryBadge, SensitiveBadge, PriceBadge, DisposalBadge } from '@/components/ui/Badge'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { Lightbox } from '@/components/ui/Lightbox'
@@ -134,7 +135,7 @@ export default function ItemDetailPage() {
     <div>
       {/* 頂部操作列 */}
       <div className="flex items-center justify-between mb-5">
-        <button onClick={() => navigate('/items')} className="text-[var(--color-text-muted)] min-h-0 min-w-0 p-1 text-lg">‹</button>
+        <button onClick={() => navigate(-1)} className="text-[var(--color-text-muted)] min-h-0 min-w-0 p-1 text-lg">‹</button>
         <div className="flex items-center gap-2">
           {/* 最愛 / 雷品 toggle */}
           <button
@@ -236,8 +237,13 @@ export default function ItemDetailPage() {
             <SensitiveBadge status={item.sensitive_skin_ok} />
           )}
           {item.rating && (
-            <span className="text-xs text-yellow-500">
-              {'★'.repeat(item.rating)}{'☆'.repeat(5 - item.rating)}
+            <span className="inline-flex items-center gap-0.5 text-sm px-2 py-0.5 rounded-full bg-yellow-400/10">
+              {'★'.repeat(item.rating).split('').map((_, i) => (
+                <span key={i} className="text-yellow-400">★</span>
+              ))}
+              {'☆'.repeat(5 - item.rating).split('').map((_, i) => (
+                <span key={i} className="text-[var(--color-border)]">★</span>
+              ))}
             </span>
           )}
         </div>
@@ -272,10 +278,10 @@ export default function ItemDetailPage() {
         {item.is_dud && <Row label="雷品" value="是" />}
       </div>
 
-      {/* 保養品心得 */}
-      {item.item_type === 'skincare' && item.review && (
+      {/* 心得 */}
+      {item.review && (
         <div className="bg-[var(--color-bg-muted)] rounded-2xl px-4 py-4 mb-4">
-          <p className="text-xs text-[var(--color-text-muted)] mb-2">試用心得</p>
+          <p className="text-xs text-[var(--color-text-muted)] mb-2">心得</p>
           <p className="text-sm text-[var(--color-text)] whitespace-pre-wrap leading-relaxed">{item.review}</p>
         </div>
       )}
@@ -284,7 +290,7 @@ export default function ItemDetailPage() {
       {item.note && (
         <div className="bg-[var(--color-bg-muted)] rounded-2xl px-4 py-4 mb-4">
           <p className="text-xs text-[var(--color-text-muted)] mb-2">備註</p>
-          <p className="text-sm text-[var(--color-text)] whitespace-pre-wrap">{item.note}</p>
+          <NoteContent text={item.note} />
         </div>
       )}
 

@@ -5,6 +5,30 @@ export type SensitiveSkinStatus = 'ok' | 'ng' | 'untested'
 export type SeasonalColor = 'spring' | 'summer' | 'autumn' | 'winter'
 export type DisposalStatus = 'kept' | 'disposed' | 'watching'
 export type PriceType = 'normal' | 'split' | 'gift' | 'present'
+export type ToolStatus = 'active' | 'stored' | 'retired'
+
+export interface Tool {
+  id: number
+  brand_en: string | null
+  brand_zh: string | null
+  name_en: string | null
+  name_zh: string | null
+  category: string | null
+  purchase_date: string | null
+  price: number | null
+  price_type: string | null
+  currency: string | null
+  image_url: string | null
+  status: ToolStatus
+  clean_cycle_days: number | null
+  last_cleaned_at: string | null
+  rating: number | null
+  sensitive_skin_ok: SensitiveSkinStatus | null
+  is_favorite: boolean | null
+  note: string | null
+  created_at: string
+  updated_at: string
+}
 
 export interface Item {
   id: number
