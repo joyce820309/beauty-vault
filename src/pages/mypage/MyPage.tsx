@@ -23,15 +23,17 @@ const menuItems: { to: string; label: string; Icon: LucideIcon }[] = [
   { to: "/my/aesthetic",    label: "醫美紀錄", Icon: Sparkles },
   { to: "/my/medications",  label: "用藥紀錄", Icon: Pill },
   { to: "/my/categories",   label: "類別管理", Icon: Tag },
+  { to: "/my/channels",     label: "通路管理", Icon: Activity },
   { to: "/my/profile",      label: "個人檔案", Icon: User },
 ];
 
-type HealthCounts = { noCategory: number; noExpiry: number; noPurchaseDate: number }
+type HealthCounts = { noCategory: number; noExpiry: number; noPurchaseDate: number; noChannel: number }
 
 const HEALTH_CHECKS: { key: keyof HealthCounts; label: string; filter: string }[] = [
   { key: 'noCategory',     label: '未設定類別',   filter: 'no-category' },
   { key: 'noExpiry',       label: '未設定效期',   filter: 'no-expiry' },
   { key: 'noPurchaseDate', label: '未設定購入日期', filter: 'no-purchase-date' },
+  { key: 'noChannel',      label: '未設定通路',   filter: 'no-channel' },
 ]
 
 function HealthRow({ label, count, to }: { label: string; count: number; to: string }) {
@@ -60,7 +62,7 @@ export default function MyPage() {
     getDataHealthCounts().then(setHealth)
   }, [])
 
-  const totalIssues = health ? health.noCategory + health.noExpiry + health.noPurchaseDate : null
+  const totalIssues = health ? health.noCategory + health.noExpiry + health.noPurchaseDate + health.noChannel : null
 
   return (
     <div>

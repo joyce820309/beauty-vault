@@ -34,17 +34,22 @@ export async function searchItems(query: string) {
     .order('purchase_date', { ascending: false })
 }
 
-export async function getDataHealthCounts(): Promise<{ noCategory: number; noExpiry: number; noPurchaseDate: number }> {
-  const base = () => supabase.from('items').select('*', { count: 'exact', head: true }).neq('disposal_status', 'disposed')
-  const [cat, exp, pur] = await Promise.all([
+export async function getDataHealthCounts(): Promise<{ noCategory: number; noExpiry: number; noPurchaseDate: number; noChannel: number }> {
+  // 排除已丟棄 & 禮物（別人送的，通路/金額等欄位本來就不適用）
+  const base = () => supabase.from('items').select('*', { count: 'exact', head: true })
+    .neq('disposal_status', 'disposed')
+    .or('price_type.is.null,price_type.neq.present')
+  const [cat, exp, pur, chan] = await Promise.all([
     base().is('category', null),
     base().is('exp_date', null),
     base().is('purchase_date', null),
+    base().is('channel', null),
   ])
   return {
     noCategory:    cat.count ?? 0,
     noExpiry:      exp.count ?? 0,
     noPurchaseDate: pur.count ?? 0,
+    noChannel:     chan.count ?? 0,
   }
 }
 

@@ -1,15 +1,21 @@
 import type { SensitiveSkinStatus, DisposalStatus } from "@/types/database";
 
 const sensitiveLabels: Record<SensitiveSkinStatus, string> = {
-  ok: "敏感肌 OK",
-  ng: "敏感肌 NG",
-  untested: "未測試",
+  all_ok:          "全可用",
+  avoid_postop:    "醫美後避開",
+  sensitive_avoid: "敏感期避開",
+  ng:              "NG",
+  untested:        "未測試",
+  ok:              "全可用",   // legacy
 };
 
 const sensitiveColors: Record<SensitiveSkinStatus, string> = {
-  ok: "bg-green-100 text-green-700",
-  ng: "bg-red-100 text-red-700",
-  untested: "bg-gray-100 text-gray-500",
+  all_ok:          "bg-[#90B4A0]/25 text-[#3A7060]",
+  avoid_postop:    "bg-[var(--color-accent)]/15 text-[var(--color-accent)]",
+  sensitive_avoid: "bg-[var(--color-caution)]/15 text-[var(--color-caution)]",
+  ng:              "bg-[var(--color-primary)]/15 text-[var(--color-primary-dark)]",
+  untested:        "bg-[var(--color-bg-muted)] text-[var(--color-text-muted)]",
+  ok:              "bg-[#90B4A0]/25 text-[#3A7060]",   // legacy
 };
 
 export function SensitiveBadge({ status }: { status: SensitiveSkinStatus }) {

@@ -22,12 +22,14 @@ export function CategorySelect({ value, onChange, itemType, label, error }: Prop
   const leafCategories = itemType === 'makeup' ? makeupCategories : skincareCategories
   const parents        = itemType === 'makeup' ? makeupParents    : skincareParents
 
-  const [open, setOpen]       = useState(false)
-  const [search, setSearch]   = useState('')
-  const [addMode, setAddMode] = useState(false)
+  const [open, setOpen]           = useState(false)
+  const [search, setSearch]       = useState('')
+  const [activeIndex, setActiveIndex] = useState(-1)
+  const [addMode, setAddMode]     = useState(false)
   const [addParentId, setAddParentId] = useState<number | null>(null)
-  const [addLabel, setAddLabel]       = useState('')
-  const [saving, setSaving]           = useState(false)
+  const [addLabel, setAddLabel]   = useState('')
+  const [addError, setAddError]   = useState('')
+  const [saving, setSaving]       = useState(false)
 
   const containerRef = useRef<HTMLDivElement>(null)
   const searchRef    = useRef<HTMLInputElement>(null)
@@ -38,11 +40,18 @@ export function CategorySelect({ value, onChange, itemType, label, error }: Prop
     ? (parentCat ? `${parentCat.label} › ${getCategoryLabel(value)}` : getCategoryLabel(value))
     : ''
 
-  const searchedLeafs = useMemo(() => {
-    if (!search.trim()) return null
-    const q = search.toLowerCase()
-    return leafCategories.filter(c => c.label.toLowerCase().includes(q))
-  }, [leafCategories, search])
+  // 依目前顯示順序建立 flat 清單，供鍵盤導航用
+  const flatOptions = useMemo<Category[]>(() => {
+    if (search.trim()) {
+      const q = search.toLowerCase()
+      return leafCategories.filter(c => c.label.toLowerCase().includes(q))
+    }
+    if (parents.length > 0) return parents.flatMap(p => getChildren(p.id))
+    return leafCategories
+  }, [search, leafCategories, parents, getChildren])
+
+  // 打字時重置游標
+  useEffect(() => { setActiveIndex(-1) }, [search])
 
   useEffect(() => {
     function onMouseDown(e: MouseEvent) {
@@ -63,35 +72,59 @@ export function CategorySelect({ value, onChange, itemType, label, error }: Prop
 
   function close() {
     setOpen(false); setSearch(''); setAddMode(false)
-    setAddParentId(null); setAddLabel('')
+    setAddParentId(null); setAddLabel(''); setAddError('')
+    setActiveIndex(-1)
   }
 
   function select(val: string) { onChange(val); close() }
+
+  function handleSearchKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (addMode) return
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setActiveIndex(i => Math.min(i + 1, flatOptions.length - 1))
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setActiveIndex(i => Math.max(i - 1, -1))
+    } else if (e.key === 'Enter') {
+      e.preventDefault() // 不讓 Enter 送出表單
+      if (activeIndex >= 0) select(flatOptions[activeIndex].value)
+    }
+  }
 
   async function handleAdd() {
     const trimmed = addLabel.trim()
     if (!trimmed) return
     setSaving(true)
+    setAddError('')
     const slug = `custom_${Date.now()}`
     const nextOrder = leafCategories.length > 0 ? Math.max(...leafCategories.map(c => c.sort_order)) + 1 : 0
-    const { data } = await createCategory({
+    const { data, error: err } = await createCategory({
       item_type: itemType, value: slug, label: trimmed,
       sort_order: nextOrder, parent_id: addParentId,
     })
+    if (err) {
+      setAddError('新增失敗，請再試一次')
+      setSaving(false)
+      return
+    }
     await reload()
     if (data) select((data as Category).value)
     setSaving(false); setAddMode(false); setAddLabel('')
   }
 
   function renderList() {
-    // 搜尋模式：平鋪
-    if (searchedLeafs) {
-      if (searchedLeafs.length === 0)
+    if (search.trim()) {
+      if (flatOptions.length === 0)
         return <p className="px-3 py-2.5 text-sm text-[var(--color-text-muted)]">沒有符合的類別</p>
-      return searchedLeafs.map(cat => <LeafRow key={cat.value} cat={cat} selected={value === cat.value} onSelect={select} />)
+      return flatOptions.map((cat, idx) => (
+        <LeafRow key={cat.value} cat={cat} selected={value === cat.value}
+          active={activeIndex === idx}
+          onSelect={select} onHover={() => setActiveIndex(idx)} />
+      ))
     }
-    // 有大類：分組顯示
     if (parents.length > 0) {
+      let idx = 0
       return parents.map(parent => {
         const children = getChildren(parent.id)
         if (children.length === 0) return null
@@ -100,13 +133,23 @@ export function CategorySelect({ value, onChange, itemType, label, error }: Prop
             <p className="px-3 pt-2 pb-0.5 text-[11px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wide select-none">
               {parent.label}
             </p>
-            {children.map(cat => <LeafRow key={cat.value} cat={cat} selected={value === cat.value} indent onSelect={select} />)}
+            {children.map(cat => {
+              const i = idx++
+              return (
+                <LeafRow key={cat.value} cat={cat} selected={value === cat.value} indent
+                  active={activeIndex === i}
+                  onSelect={select} onHover={() => setActiveIndex(i)} />
+              )
+            })}
           </div>
         )
       })
     }
-    // 無大類（INITIAL）：平鋪
-    return leafCategories.map(cat => <LeafRow key={cat.value} cat={cat} selected={value === cat.value} onSelect={select} />)
+    return flatOptions.map((cat, idx) => (
+      <LeafRow key={cat.value} cat={cat} selected={value === cat.value}
+        active={activeIndex === idx}
+        onSelect={select} onHover={() => setActiveIndex(idx)} />
+    ))
   }
 
   return (
@@ -139,6 +182,7 @@ export function CategorySelect({ value, onChange, itemType, label, error }: Prop
           <div className="px-3 py-2 border-b border-[var(--color-border)]">
             <input ref={searchRef} type="text" value={search}
               onChange={e => setSearch(e.target.value)}
+              onKeyDown={handleSearchKeyDown}
               placeholder="搜尋類別…"
               className="w-full text-sm bg-transparent text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] focus:outline-none" />
           </div>
@@ -147,12 +191,13 @@ export function CategorySelect({ value, onChange, itemType, label, error }: Prop
 
           <div className="border-t border-[var(--color-border)] px-3 py-2">
             {!addMode ? (
-              <button type="button" onMouseDown={() => setAddMode(true)}
+              <button type="button" onClick={() => setAddMode(true)}
                 className="flex items-center gap-1.5 text-sm text-[var(--color-primary)] font-medium min-h-0 hover:underline">
                 <Plus size={14} strokeWidth={2} />新增子類
               </button>
             ) : (
               <div className="space-y-1.5">
+                {addError && <p className="text-xs" style={{ color: 'var(--color-danger)' }}>{addError}</p>}
                 {parents.length > 0 && (
                   <select value={addParentId ?? ''}
                     onChange={e => setAddParentId(e.target.value ? Number(e.target.value) : null)}
@@ -167,15 +212,15 @@ export function CategorySelect({ value, onChange, itemType, label, error }: Prop
                     onKeyDown={e => {
                       if (e.nativeEvent.isComposing) return
                       if (e.key === 'Enter') { e.preventDefault(); handleAdd() }
-                      if (e.key === 'Escape') { setAddMode(false); setAddLabel('') }
+                      if (e.key === 'Escape') { setAddMode(false); setAddLabel(''); setAddError('') }
                     }}
                     placeholder="子類名稱"
                     className="flex-1 text-sm px-2 py-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-muted)] text-[var(--color-text)] focus:outline-none focus:border-[var(--color-primary)]" />
-                  <button type="button" onMouseDown={handleAdd} disabled={saving || !addLabel.trim()}
+                  <button type="button" onClick={handleAdd} disabled={saving || !addLabel.trim()}
                     className="px-2.5 py-1.5 rounded-lg bg-[var(--color-primary)] text-white text-xs font-medium min-h-0 disabled:opacity-40">
                     {saving ? '…' : '確認'}
                   </button>
-                  <button type="button" onMouseDown={() => { setAddMode(false); setAddLabel('') }}
+                  <button type="button" onClick={() => { setAddMode(false); setAddLabel(''); setAddError('') }}
                     className="p-1.5 rounded-lg text-[var(--color-text-muted)] hover:bg-[var(--color-bg-muted)] min-h-0 min-w-0">
                     <X size={14} strokeWidth={2} />
                   </button>
@@ -189,16 +234,27 @@ export function CategorySelect({ value, onChange, itemType, label, error }: Prop
   )
 }
 
-function LeafRow({ cat, selected, indent, onSelect }: {
-  cat: Category; selected: boolean; indent?: boolean; onSelect: (v: string) => void
+function LeafRow({ cat, selected, indent, active, onSelect, onHover }: {
+  cat: Category; selected: boolean; indent?: boolean; active?: boolean
+  onSelect: (v: string) => void; onHover: () => void
 }) {
+  const ref = useRef<HTMLButtonElement>(null)
+
+  useEffect(() => {
+    if (active) ref.current?.scrollIntoView({ block: 'nearest' })
+  }, [active])
+
   return (
-    <button type="button" onMouseDown={() => onSelect(cat.value)}
+    <button ref={ref} type="button"
+      onMouseDown={() => onSelect(cat.value)}
+      onMouseEnter={onHover}
       className={`w-full flex items-center gap-2 text-sm transition-colors min-h-0 text-left ${
         indent ? 'px-6 py-1.5' : 'px-3 py-2'
       } ${
         selected
           ? 'bg-[var(--color-primary-light)] text-[var(--color-primary-dark)] font-medium'
+          : active
+          ? 'bg-[var(--color-primary-light)] text-[var(--color-primary-dark)]'
           : 'text-[var(--color-text)] hover:bg-[var(--color-bg-muted)]'
       }`}>
       <span className="flex-1">{cat.label}</span>

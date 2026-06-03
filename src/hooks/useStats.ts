@@ -46,6 +46,26 @@ export function useStats(items: Item[]) {
       'price'
     )
 
+    // 品牌圓餅（前 8 名 + 其他）
+    const TOP_N = 8
+    const brandCountMap = groupBy(
+      items.filter(i => i.brand_en || i.brand_zh),
+      (i) => i.brand_en || i.brand_zh || '不詳'
+    )
+    const brandPriceMap = groupByPrice(
+      items.filter(i => i.brand_en || i.brand_zh),
+      (i) => i.brand_en || i.brand_zh || '不詳'
+    )
+    function toTopN(map: Record<string, number>): { name: string; value: number }[] {
+      const sorted = Object.entries(map).sort((a, b) => b[1] - a[1])
+      const top = sorted.slice(0, TOP_N).map(([name, value]) => ({ name, value }))
+      const rest = sorted.slice(TOP_N).reduce((s, [, v]) => s + v, 0)
+      if (rest > 0) top.push({ name: '其他', value: rest })
+      return top
+    }
+    const brandPieCount = toTopN(brandCountMap)
+    const brandPiePrice = toTopN(brandPriceMap)
+
     // 消費趨勢（近 12 個月）
     const trendMonths = Array.from({ length: 12 }, (_, i) => {
       const d = subMonths(startOfMonth(now), 11 - i)
@@ -64,6 +84,7 @@ export function useStats(items: Item[]) {
       totalCount, totalSpend, thisYearSpend, expiringCount,
       makeupPieCount, makeupPiePrice,
       skincarePieCount, skincarePiePrice,
+      brandPieCount, brandPiePrice,
       trendLine,
     }
   }, [items])

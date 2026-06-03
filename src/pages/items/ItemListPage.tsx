@@ -80,6 +80,7 @@ const HEALTH_LABELS: Record<string, string> = {
   'no-category':      '顯示未設定類別的品項',
   'no-expiry':        '顯示未設定效期的品項',
   'no-purchase-date': '顯示未設定購入日期的品項',
+  'no-channel':       '顯示未設定通路的品項',
 }
 
 export default function ItemListPage() {
@@ -172,6 +173,7 @@ export default function ItemListPage() {
       if (healthFilter === 'no-category'      && item.category)      return false
       if (healthFilter === 'no-expiry'        && item.exp_date)       return false
       if (healthFilter === 'no-purchase-date' && item.purchase_date)  return false
+      if (healthFilter === 'no-channel'       && item.channel)        return false
       return true
     })
 

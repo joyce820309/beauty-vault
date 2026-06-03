@@ -252,11 +252,6 @@ export function ItemTable({ items }: { items: Item[] }) {
                   ) : item.price != null ? (
                     <span>
                       ${item.price.toLocaleString()}
-                      {item.price_type === "split" && (
-                        <span className="ml-1 text-xs text-[var(--color-accent)]">
-                          分
-                        </span>
-                      )}
                       {item.currency && (
                         <span className="ml-1 text-xs text-[var(--color-text-muted)]">
                           {item.currency}

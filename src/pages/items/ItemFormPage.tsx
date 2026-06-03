@@ -14,7 +14,15 @@ import { SENSITIVE_SKIN_OPTIONS } from "@/utils/categories";
 import { Camera } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 import { addCustomOption } from "@/lib/customOptions";
+import { useChannels } from "@/hooks/useChannels";
 import type { ItemType, PriceType } from "@/types/database";
+
+// 全形數字（注音輸入法數字鍵）→ 半形
+function toHalfWidth(str: string): string {
+  return str
+    .replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xFEE0))
+    .replace(/．/g, '.')
+}
 
 const schema = z.object({
   item_type: z.enum(["makeup", "skincare"]),
@@ -40,16 +48,18 @@ const schema = z.object({
   note: z.string().optional(),
   rating: z.coerce.number().int().min(1).max(5).optional().or(z.literal("")),
   review: z.string().optional(),
-  sensitive_skin_ok: z.enum(["ok", "ng", "untested"]).optional(),
+  sensitive_skin_ok: z.enum(["all_ok", "avoid_postop", "sensitive_avoid", "ng", "untested", "ok"]).optional(),
   currency: z.string().optional(),
   fragrance: z.enum(["strong", "mild", "none"]).optional(),
   is_dud: z.boolean().optional(),
   is_sample: z.boolean().optional(),
   is_favorite: z.boolean().optional(),
   volume_ml: z.coerce.number().nonnegative().optional().or(z.literal("")),
+  channel: z.string().optional(),
 });
 
 type FormData = z.infer<typeof schema>;
+
 
 function Field({
   label,
@@ -109,9 +119,11 @@ export default function ItemFormPage() {
   const isEdit = !!id;
   const { brands, names, brandZhOptions, nameZhOptions, shadeEnOptions } =
     useComboboxOptions();
+  const { channels } = useChannels();
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [createdId, setCreatedId] = useState<number | null>(null);
 
   const [showCurrencyPanel, setShowCurrencyPanel] = useState(false);
   const [foreignAmount, setForeignAmount] = useState("");
@@ -124,6 +136,7 @@ export default function ItemFormPage() {
     control,
     watch,
     setValue,
+    reset,
     formState: { errors },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -137,12 +150,30 @@ export default function ItemFormPage() {
   const itemType = watch("item_type") as ItemType;
   const priceType = watch("price_type") as PriceType;
 
+  // register 的數字欄位包裝：type="text" + inputMode + 全形轉半形
+  function numReg(name: Parameters<typeof register>[0]) {
+    const { onChange, ...rest } = register(name)
+    return {
+      ...rest,
+      type: "text" as const,
+      inputMode: "decimal" as const,
+      onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
+        e.target.value = toHalfWidth(e.target.value)
+        onChange(e)
+      },
+    }
+  }
+
   useEffect(() => {
     if (!isEdit) return;
     getItemById(Number(id)).then(({ data }) => {
       if (!data) return;
       Object.entries(data).forEach(([k, v]) => {
-        if (v !== null && v !== undefined) setValue(k as keyof FormData, v as never);
+        if (v !== null && v !== undefined) {
+          // 舊版 'ok' → 新值 'all_ok'
+          const val = (k === 'sensitive_skin_ok' && v === 'ok') ? 'all_ok' : v
+          setValue(k as keyof FormData, val as never)
+        }
       });
       // category/item_type 即使是空值也要明確設定，避免驗證失敗
       setValue('item_type', data.item_type ?? 'makeup');
@@ -236,6 +267,7 @@ export default function ItemFormPage() {
       is_sample: data.is_sample ?? false,
       is_favorite: data.is_favorite ?? false,
       volume_ml: data.volume_ml !== "" && data.volume_ml != null ? Number(data.volume_ml) : null,
+      channel: data.channel || null,
       ...(image_url ? { image_url } : {}),
     };
 
@@ -246,8 +278,7 @@ export default function ItemFormPage() {
       } else {
         const { data: created, error } = await createItem(payload as never);
         if (error) throw error;
-        showToast("品項已新增");
-        navigate(`/items/${created?.id ?? ""}`);
+        setCreatedId(created?.id ?? null);
       }
       // 儲存成功後，將新值加入本地建議清單
       if (data.brand_en) addCustomOption('brand_en', data.brand_en)
@@ -536,8 +567,7 @@ export default function ItemFormPage() {
                     組合總價（NT$）
                   </p>
                   <Input
-                    type="number"
-                    {...register("original_price")}
+                    {...numReg("original_price")}
                     placeholder="例：1500（整組售價）"
                     error={errors.original_price?.message}
                   />
@@ -556,13 +586,13 @@ export default function ItemFormPage() {
                     control={control}
                     render={({ field }) => (
                       <Input
-                        type="number"
+                        type="text"
+                        inputMode="decimal"
                         value={field.value ?? ""}
-                        onChange={(e) =>
-                          field.onChange(
-                            e.target.value === "" ? "" : e.target.value,
-                          )
-                        }
+                        onChange={(e) => {
+                          const v = toHalfWidth(e.target.value)
+                          field.onChange(v === "" ? "" : v)
+                        }}
                         placeholder={
                           priceType === "split" ? "此色號分攤金額" : "0"
                         }
@@ -615,9 +645,10 @@ export default function ItemFormPage() {
               </div>
               <div className="flex items-center gap-2">
                 <input
-                  type="number"
+                  type="text"
+                  inputMode="decimal"
                   value={foreignAmount}
-                  onChange={(e) => setForeignAmount(e.target.value)}
+                  onChange={(e) => setForeignAmount(toHalfWidth(e.target.value))}
                   placeholder="外幣金額"
                   className="flex-1 px-3 py-2 rounded-xl border border-[var(--color-border)] text-sm bg-[var(--color-bg-card)] text-[var(--color-text)] focus:outline-none"
                 />
@@ -625,9 +656,10 @@ export default function ItemFormPage() {
                   ×
                 </span>
                 <input
-                  type="number"
+                  type="text"
+                  inputMode="decimal"
                   value={rate}
-                  onChange={(e) => setRate(e.target.value)}
+                  onChange={(e) => setRate(toHalfWidth(e.target.value))}
                   placeholder="匯率"
                   className="w-20 px-3 py-2 rounded-xl border border-[var(--color-border)] text-sm bg-[var(--color-bg-card)] text-[var(--color-text)] focus:outline-none"
                 />
@@ -671,9 +703,28 @@ export default function ItemFormPage() {
         </div>
         </div>{/* end 購入日期 + 購入金額 grid */}
 
+        {/* 通路 */}
+        <div>
+          <label className="block text-sm font-medium text-[var(--color-text)] mb-2">通路</label>
+          <div className="flex flex-wrap gap-2">
+            {channels.map((ch) => (
+              <button
+                key={ch.id}
+                type="button"
+                onClick={() => setValue('channel', watch('channel') === ch.label ? undefined : ch.label)}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors min-h-0 ${
+                  watch('channel') === ch.label ? activeType : inactiveType
+                }`}
+              >
+                {ch.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* 圖片 */}
         <Field label="產品圖片">
-          <label className="block cursor-pointer">
+          <label className="inline-block cursor-pointer">
             {imagePreview ? (
               <div className="relative w-32 h-32">
                 <img
@@ -741,8 +792,7 @@ export default function ItemFormPage() {
             <div>
               <p className="text-sm font-medium text-[var(--color-text)] mb-2">容量（ml）</p>
               <Input
-                type="number"
-                {...register("volume_ml")}
+                {...numReg("volume_ml")}
                 placeholder="例：50"
               />
             </div>
@@ -862,21 +912,37 @@ export default function ItemFormPage() {
         {/* 保養品專屬 */}
         {itemType === "skincare" && (
           <Field label="敏感肌適用">
-            <div className="flex gap-2">
-              {SENSITIVE_SKIN_OPTIONS.map((o) => (
-                <button
-                  key={o.value}
-                  type="button"
-                  onClick={() => setValue("sensitive_skin_ok", o.value)}
-                  className={`flex-1 py-2 rounded-xl text-sm font-medium border transition-colors min-h-0 ${
-                    watch("sensitive_skin_ok") === o.value
-                      ? activeType
-                      : inactiveType
-                  }`}
-                >
-                  {o.label}
-                </button>
-              ))}
+            <div className="space-y-2">
+              {/* 上排：三種 OK 情境 */}
+              <div className="flex gap-2">
+                {SENSITIVE_SKIN_OPTIONS.slice(0, 3).map((o) => (
+                  <button
+                    key={o.value}
+                    type="button"
+                    onClick={() => setValue("sensitive_skin_ok", o.value)}
+                    className={`flex-1 py-2 rounded-xl text-sm font-medium border transition-colors min-h-0 ${
+                      watch("sensitive_skin_ok") === o.value ? activeType : inactiveType
+                    }`}
+                  >
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+              {/* 下排：NG + 未測試 */}
+              <div className="flex gap-2">
+                {SENSITIVE_SKIN_OPTIONS.slice(3).map((o) => (
+                  <button
+                    key={o.value}
+                    type="button"
+                    onClick={() => setValue("sensitive_skin_ok", o.value)}
+                    className={`flex-1 py-2 rounded-xl text-sm font-medium border transition-colors min-h-0 ${
+                      watch("sensitive_skin_ok") === o.value ? activeType : inactiveType
+                    }`}
+                  >
+                    {o.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </Field>
         )}
@@ -892,6 +958,44 @@ export default function ItemFormPage() {
       </form>
 
       <div className="h-8" />
+
+      {/* 新增成功後：詢問是否繼續新增 */}
+      {createdId !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-6"
+          style={{ backgroundColor: 'rgba(0,0,0,0.35)', backdropFilter: 'blur(2px)' }}>
+          <div className="w-full max-w-sm bg-[var(--color-bg-card)] rounded-2xl p-6 shadow-xl"
+            style={{ animation: 'selectFadeIn 0.15s ease' }}>
+            <p className="text-base font-semibold text-[var(--color-text)] mb-1">品項已新增！</p>
+            <p className="text-sm text-[var(--color-text-muted)] mb-5">要繼續新增另一筆嗎？</p>
+            <div className="flex flex-col gap-2.5">
+              <button
+                type="button"
+                onClick={() => {
+                  reset({ item_type: "makeup", sensitive_skin_ok: "untested", price_type: "normal" });
+                  setImageFile(null);
+                  setImagePreview(null);
+                  setShowCurrencyPanel(false);
+                  setForeignAmount("");
+                  setRate("");
+                  setSelectedCurrency("");
+                  setCreatedId(null);
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }}
+                className="w-full py-3 bg-[var(--color-primary)] text-white rounded-xl font-medium text-sm"
+              >
+                繼續新增
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate(`/items/${createdId}`)}
+                className="w-full py-3 bg-[var(--color-bg-muted)] text-[var(--color-text)] rounded-xl font-medium text-sm"
+              >
+                查看品項
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

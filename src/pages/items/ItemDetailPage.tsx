@@ -161,15 +161,21 @@ export default function ItemDetailPage() {
             <Copy size={15} strokeWidth={1.5} />
           </button>
           <Link
+            to="/items/new"
+            className="px-4 py-2 rounded-xl border border-[var(--color-border)] text-[var(--color-text-muted)] text-sm font-medium flex items-center justify-center min-h-0 hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] transition-colors"
+          >
+            新增
+          </Link>
+          <Link
             to={`/items/${id}/edit`}
-            className="px-4 py-2 rounded-xl border border-[var(--color-primary)] text-[var(--color-primary)] text-sm font-medium flex items-center justify-center min-h-0"
+            className="px-4 py-2 rounded-xl border border-[var(--color-border)] text-[var(--color-text-muted)] text-sm font-medium flex items-center justify-center min-h-0 hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] transition-colors"
           >
             編輯
           </Link>
           <button
             onClick={handleDelete}
             disabled={deleting}
-            className="px-4 py-2 rounded-xl border border-red-300 text-red-500 text-sm font-medium min-h-0 disabled:opacity-50"
+            className="px-4 py-2 rounded-xl border border-[var(--color-primary)] text-[var(--color-primary)] text-sm font-medium min-h-0 hover:border-[var(--color-primary-dark)] hover:text-[var(--color-primary-dark)] transition-colors disabled:opacity-50"
           >
             {deleting ? '刪除中…' : '刪除'}
           </button>

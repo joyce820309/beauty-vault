@@ -24,7 +24,9 @@ export const SKINCARE_CATEGORIES = [
 ] as const
 
 export const SENSITIVE_SKIN_OPTIONS = [
-  { value: 'ok', label: '敏感肌 OK' },
-  { value: 'ng', label: '敏感肌 NG' },
-  { value: 'untested', label: '未測試' },
+  { value: 'all_ok',          label: '全可用' },
+  { value: 'avoid_postop',    label: '醫美後避開' },
+  { value: 'sensitive_avoid', label: '敏感期避開' },
+  { value: 'ng',              label: 'NG' },
+  { value: 'untested',        label: '未測試' },
 ] as const

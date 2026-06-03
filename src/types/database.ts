@@ -1,7 +1,7 @@
 // Auto-generate with: supabase gen types typescript --project-id <id> > src/types/database.ts
 
 export type ItemType = 'makeup' | 'skincare'
-export type SensitiveSkinStatus = 'ok' | 'ng' | 'untested'
+export type SensitiveSkinStatus = 'all_ok' | 'avoid_postop' | 'sensitive_avoid' | 'ng' | 'untested' | 'ok'
 export type SeasonalColor = 'spring' | 'summer' | 'autumn' | 'winter'
 export type DisposalStatus = 'kept' | 'disposed' | 'watching'
 export type PriceType = 'normal' | 'split' | 'gift' | 'present'
@@ -60,6 +60,7 @@ export interface Item {
   is_sample: boolean | null
   is_favorite: boolean | null
   volume_ml: number | null
+  channel: string | null
   created_at: string
   updated_at: string
 }

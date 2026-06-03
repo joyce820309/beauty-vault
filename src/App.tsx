@@ -16,6 +16,7 @@ import ProfilePage from "@/pages/mypage/ProfilePage";
 import WishlistPage from "@/pages/wishlist/WishlistPage";
 import WishlistDetailPage from "@/pages/wishlist/WishlistDetailPage";
 import CategoriesPage from "@/pages/mypage/CategoriesPage";
+import ChannelsPage from "@/pages/mypage/ChannelsPage";
 import MedicationListPage from "@/pages/medications/MedicationListPage";
 import MedicationDetailPage from "@/pages/medications/MedicationDetailPage";
 import MedicationFormPage from "@/pages/medications/MedicationFormPage";
@@ -51,6 +52,7 @@ export default function App() {
             <Route path="my/wishlist" element={<WishlistPage />} />
             <Route path="my/wishlist/:id" element={<WishlistDetailPage />} />
             <Route path="my/categories" element={<CategoriesPage />} />
+            <Route path="my/channels" element={<ChannelsPage />} />
             <Route path="my/medications" element={<MedicationListPage />} />
             <Route path="my/medications/new" element={<MedicationFormPage />} />
             <Route path="my/medications/:id" element={<MedicationDetailPage />} />
