@@ -8,12 +8,14 @@ import {
   ChevronRight,
   Tag,
   Pill,
+  Wrench,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 const menuItems: { to: string; label: string; Icon: LucideIcon }[] = [
   { to: "/stats", label: "統計圖表", Icon: BarChart2 },
   { to: "/my/wishlist", label: "採購清單", Icon: ShoppingBag },
+  { to: "/tools", label: "工具管理", Icon: Wrench },
   { to: "/my/skin", label: "膚況追蹤", Icon: Droplets },
   { to: "/my/aesthetic", label: "醫美紀錄", Icon: Sparkles },
   { to: "/my/medications", label: "用藥紀錄", Icon: Pill },

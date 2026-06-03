@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { AutoTextarea } from '@/components/ui/AutoTextarea'
 import { useNavigate } from 'react-router-dom'
 import { ChevronLeft, Plus, Trash2, ChevronDown, ChevronUp, Pencil, X } from 'lucide-react'
 import { Select } from '@/components/ui/Select'
@@ -246,12 +247,7 @@ export default function SkinTrackingPage() {
           </div>
           <div>
             <label className="block text-xs text-[var(--color-text-muted)] mb-1">備註</label>
-            <textarea
-              {...register('note')}
-              rows={2}
-              placeholder="膚況說明、天氣、生理期…"
-              className="w-full px-3 py-2 rounded-xl border border-[var(--color-border)] text-sm bg-[var(--color-bg-card)] text-[var(--color-text)] focus:outline-none focus:border-[var(--color-primary)] resize-none"
-            />
+            <AutoTextarea {...register('note')} placeholder="膚況說明、天氣、生理期…" />
           </div>
           <div className="flex gap-2">
             <button
@@ -453,12 +449,7 @@ export default function SkinTrackingPage() {
                               <MetricInput key={key} label={label} value={editForm.watch(key)} onChange={(v) => editForm.setValue(key, v)} min={0} max={100} />
                             )
                           )}
-                          <textarea
-                            {...editForm.register('note')}
-                            rows={2}
-                            placeholder="備註（選填）"
-                            className="w-full px-3 py-2 rounded-xl border border-[var(--color-border)] text-sm bg-[var(--color-bg-card)] text-[var(--color-text)] focus:outline-none focus:border-[var(--color-primary)] resize-none"
-                          />
+                          <AutoTextarea {...editForm.register('note')} placeholder="備註（選填）" />
                           <div className="flex gap-2">
                             <button type="button" onClick={() => setEditingId(null)} className="flex-1 py-2 rounded-xl border border-[var(--color-border)] text-sm text-[var(--color-text-muted)] min-h-0 flex items-center justify-center gap-1">
                               <X size={13} strokeWidth={1.5} />取消

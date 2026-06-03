@@ -15,6 +15,11 @@
   --color-text:          #3A2E32;   /* 深灰帶暖，非純黑 */
   --color-text-muted:    #8A7880;
   --color-border:        #E8DEE0;
+  --color-skeleton:      #E6DADC;
+  --color-present-badge-bg:     #F2DCE6;
+  --color-present-badge-text:   #A84F68;
+  --color-freebie-badge-bg:     #E9E2F1;
+  --color-freebie-badge-text:   #7A6795;
   --color-focus-ring:    rgba(196, 118, 138, 0.22);
   --color-danger:        #B85550;
   --color-warning:       #B87840;
@@ -30,9 +35,14 @@
   --color-bg:            #1E1A1B;   /* 深暖灰，非純黑 */
   --color-bg-card:       #2A2426;   /* 卡片略亮 */
   --color-bg-muted:      #332B2D;   /* 底色 */
-  --color-text:          #EDE6E8;   /* 偏暖白，非純白 */
+  --color-text:          #C8C4C5;   /* 介於 #ADAAAB 和 #EDE6E8 之間 */
   --color-text-muted:    #9E8E92;
   --color-border:        #3E3436;
+  --color-skeleton:      #443A3D;
+  --color-present-badge-bg:     rgba(212, 137, 156, 0.24);
+  --color-present-badge-text:   #F0BBC9;
+  --color-freebie-badge-bg:     rgba(160, 144, 192, 0.2);
+  --color-freebie-badge-text:   #C6B8DE;
   --color-focus-ring:    rgba(212, 137, 156, 0.28);
   --color-danger:        #D4706A;
   --color-warning:       #CC9050;

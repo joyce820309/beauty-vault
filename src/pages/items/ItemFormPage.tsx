@@ -1,4 +1,5 @@
 import { useEffect, useState, forwardRef } from "react";
+import { AutoTextarea } from "@/components/ui/AutoTextarea";
 import { useNavigate, useParams } from "react-router-dom";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -213,10 +214,7 @@ export default function ItemFormPage() {
         data.price_type === "split" && data.original_price !== ""
           ? Number(data.original_price)
           : null,
-      rating:
-        itemType === "skincare" && data.rating !== ""
-          ? Number(data.rating)
-          : null,
+      rating: data.rating !== "" && data.rating != null ? Number(data.rating) : null,
       brand_zh: data.brand_zh || null,
       brand_en: data.brand_en || null,
       name_zh: data.name_zh || null,
@@ -259,7 +257,7 @@ export default function ItemFormPage() {
       )
       if (data.name_zh) addCustomOption('name_zh', data.name_zh)
       if (data.shade_en) addCustomOption('shade_en', data.shade_en)
-      if (isEdit) navigate(`/items/${id}`)
+      if (isEdit) navigate(`/items/${id}`, { replace: true })
     } catch {
       showToast("儲存失敗，請稍後再試", "error");
     }
@@ -323,7 +321,7 @@ export default function ItemFormPage() {
           )}
         />
         {/* 品牌 */}
-        <div className="grid grid-cols-1 [@media(min-height:700px)]:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Controller
             name="brand_en"
             control={control}
@@ -354,7 +352,7 @@ export default function ItemFormPage() {
         </div>
 
         {/* 品名 */}
-        <div className="grid grid-cols-1 [@media(min-height:700px)]:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Controller
             name="name_en"
             control={control}
@@ -391,7 +389,7 @@ export default function ItemFormPage() {
 
         {/* 色號（化妝品專屬） */}
         {itemType === "makeup" && (
-          <div className="grid grid-cols-1 [@media(min-height:700px)]:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Controller
               name="shade_en"
               control={control}
@@ -412,7 +410,7 @@ export default function ItemFormPage() {
         )}
 
         {/* 日期：製造日期 + 有效期限 並排 */}
-        <div className="grid grid-cols-1 [@media(min-height:700px)]:grid-cols-2 gap-3 items-start">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
           <Controller
             name="mfg_date"
             control={control}
@@ -486,7 +484,7 @@ export default function ItemFormPage() {
         </div>
 
         {/* 購入日期 + 購入金額 並排 */}
-        <div className="grid grid-cols-1 [@media(min-height:700px)]:grid-cols-2 gap-3 items-start">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
           <Controller
             name="purchase_date"
             control={control}
@@ -818,64 +816,69 @@ export default function ItemFormPage() {
 
         {/* 備註 */}
         <Field label="備註">
-          <textarea
+          <AutoTextarea
             {...register("note")}
-            rows={3}
-            placeholder="選填"
-            className="w-full px-3 py-2.5 rounded-xl border border-[var(--color-border)] text-sm text-[var(--color-text)] bg-[var(--color-bg-card)] focus:outline-none focus:border-[var(--color-primary)] resize-none"
+            placeholder={"選填\n支援 - 開頭的條列格式"}
+          />
+        </Field>
+
+        {/* 評分 */}
+        <Field label="評分">
+          <div className="flex gap-1">
+            {[1, 2, 3, 4, 5].map((n) => (
+              <button
+                key={n}
+                type="button"
+                onClick={() => setValue("rating", watch("rating") === n ? "" : n)}
+                className={`w-10 h-10 rounded-full text-2xl transition-colors min-h-0 min-w-0 ${
+                  Number(watch("rating")) >= n
+                    ? "text-yellow-400"
+                    : "text-[var(--color-border)]"
+                }`}
+              >
+                ★
+              </button>
+            ))}
+            {watch("rating") && (
+              <button
+                type="button"
+                onClick={() => setValue("rating", "")}
+                className="ml-1 text-xs text-[var(--color-text-muted)] underline min-h-0 self-center"
+              >
+                清除
+              </button>
+            )}
+          </div>
+        </Field>
+
+        {/* 心得 */}
+        <Field label="心得">
+          <AutoTextarea
+            {...register("review")}
+            placeholder="記錄使用感受、上妝效果、發色…"
           />
         </Field>
 
         {/* 保養品專屬 */}
         {itemType === "skincare" && (
-          <>
-            <Field label="評分">
-              <div className="flex gap-2">
-                {[1, 2, 3, 4, 5].map((n) => (
-                  <button
-                    key={n}
-                    type="button"
-                    onClick={() => setValue("rating", n)}
-                    className={`w-10 h-10 rounded-full text-lg transition-colors min-h-0 min-w-0 ${
-                      Number(watch("rating")) >= n
-                        ? "text-yellow-400"
-                        : "text-[var(--color-border)]"
-                    }`}
-                  >
-                    ★
-                  </button>
-                ))}
-              </div>
-            </Field>
-
-            <Field label="試用心得">
-              <textarea
-                {...register("review")}
-                rows={4}
-                placeholder="記錄使用感受、膚況變化…"
-                className="w-full px-3 py-2.5 rounded-xl border border-[var(--color-border)] text-sm text-[var(--color-text)] bg-[var(--color-bg-card)] focus:outline-none focus:border-[var(--color-primary)] resize-none"
-              />
-            </Field>
-
-            <Field label="敏感肌適用">
-              <div className="flex gap-2">
-                {SENSITIVE_SKIN_OPTIONS.map((o) => (
-                  <button
-                    key={o.value}
-                    type="button"
-                    onClick={() => setValue("sensitive_skin_ok", o.value)}
-                    className={`flex-1 py-2 rounded-xl text-sm font-medium border transition-colors min-h-0 ${
-                      watch("sensitive_skin_ok") === o.value
-                        ? activeType
-                        : inactiveType
-                    }`}
-                  >
-                    {o.label}
-                  </button>
-                ))}
-              </div>
-            </Field>
-          </>
+          <Field label="敏感肌適用">
+            <div className="flex gap-2">
+              {SENSITIVE_SKIN_OPTIONS.map((o) => (
+                <button
+                  key={o.value}
+                  type="button"
+                  onClick={() => setValue("sensitive_skin_ok", o.value)}
+                  className={`flex-1 py-2 rounded-xl text-sm font-medium border transition-colors min-h-0 ${
+                    watch("sensitive_skin_ok") === o.value
+                      ? activeType
+                      : inactiveType
+                  }`}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
+          </Field>
         )}
 
         {/* 送出 */}

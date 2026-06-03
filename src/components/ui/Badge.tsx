@@ -24,11 +24,11 @@ export function SensitiveBadge({ status }: { status: SensitiveSkinStatus }) {
 
 const expiryColors: Record<string, string> = {
   expired: "bg-[var(--color-bg-muted)] text-[var(--color-text-muted)]",
-  urgent: "bg-red-100 text-red-700",
-  warning: "bg-orange-100 text-orange-700",
-  caution: "bg-yellow-100 text-yellow-700",
-  notice: "bg-sky-100 text-sky-700",
-  ok: "bg-green-100 text-green-700",
+  urgent:  "bg-[var(--color-danger)]/10 text-[var(--color-danger)]",
+  warning: "bg-[var(--color-warning)]/10 text-[var(--color-warning)]",
+  caution: "bg-[var(--color-caution)]/10 text-[var(--color-caution)]",
+  notice:  "bg-[var(--color-accent)]/10 text-[var(--color-accent)]",
+  ok:      "bg-[var(--color-bg-muted)] text-[var(--color-text-muted)]",
 };
 
 const expiryLabels: Record<string, string> = {
@@ -83,41 +83,28 @@ export function PriceBadge({
 }) {
   if (priceType === "gift") {
     return (
-      <span
-        className="inline-block text-xs px-2 py-0.5 rounded-full font-medium"
-        style={{
-          color: '#9333ea',
-          backgroundColor: 'color-mix(in srgb, #9333ea 10%, transparent)',
-        }}
-      >
+      <span className="inline-block text-xs px-2 py-0.5 rounded-full font-medium bg-[var(--color-freebie-badge-bg)] text-[var(--color-freebie-badge-text)]">
         贈品
       </span>
     );
   }
   if (priceType === "present") {
     return (
-      <span
-        className="inline-block text-xs px-2 py-0.5 rounded-full font-medium"
-        style={{
-          color: "var(--color-primary)",
-          backgroundColor:
-            "color-mix(in srgb, var(--color-primary) 12%, transparent)",
-        }}
-      >
-        GIFT
+      <span className="inline-block text-xs px-2 py-0.5 rounded-full font-semibold tracking-wide bg-[var(--color-present-badge-bg)] text-[var(--color-present-badge-text)] shadow-[0_1px_4px_rgba(168,79,104,0.16)]">
+        禮物
       </span>
     );
   }
   if (priceType === "split") {
     return (
-      <span className="inline-block text-xs px-2 py-0.5 rounded-full font-medium bg-sky-100 text-sky-700">
+      <span className="inline-block text-xs px-2 py-0.5 rounded-full font-medium bg-[var(--color-accent)]/10 text-[var(--color-accent)]">
         組合價
       </span>
     );
   }
   if (currency) {
     return (
-      <span className="inline-block text-xs px-2 py-0.5 rounded-full font-medium bg-amber-100 text-amber-700">
+      <span className="inline-block text-xs px-2 py-0.5 rounded-full font-medium bg-[var(--color-bg-muted)] text-[var(--color-text-muted)]">
         {currency}
       </span>
     );

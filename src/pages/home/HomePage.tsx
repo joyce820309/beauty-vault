@@ -1,53 +1,110 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Plus, Package, CheckCircle, ChevronDown, ChevronUp, Eye } from 'lucide-react'
+import { Plus, Package, CheckCircle, Eye, PawPrint } from 'lucide-react'
 import { getItems } from '@/lib/supabase/items'
 import { getExpiryLevel, expiryColors, type ExpiryLevel } from '@/utils/expiry'
 import { Skeleton } from '@/components/ui/Skeleton'
 import type { Item } from '@/types/database'
 import { differenceInDays, parseISO, format } from 'date-fns'
 
-type ExpiryGroup = { level: ExpiryLevel; label: string; items: Item[] }
+// 切換方案：'A' = 2×2 卡片格, 'C' = 橫向滑動卡片
+const EXPIRY_STYLE: 'A' | 'C' = 'C'
+
+type ExpiryCardInfo = {
+  level: ExpiryLevel
+  label: string
+  sublabel: string
+  count: number
+  filter: string
+}
+
+const EXPIRY_CARD_DEFS: Omit<ExpiryCardInfo, 'count'>[] = [
+  { level: 'expired', label: '已過期',       sublabel: '未處理',   filter: 'expired' },
+  { level: 'urgent',  label: '緊急',          sublabel: '7 天內',   filter: 'urgent'  },
+  { level: 'warning', label: '警告',          sublabel: '8–30 天',  filter: 'warning' },
+  { level: 'caution', label: '注意',          sublabel: '1–3 個月', filter: 'caution' },
+  { level: 'notice',  label: '通知',          sublabel: '3–6 個月', filter: 'notice'  },
+]
 
 function getDaysLeft(expDate: string) {
   return differenceInDays(parseISO(expDate), new Date())
 }
 
-function ExpiryItemRow({ item }: { item: Item }) {
-  const daysLeft = getDaysLeft(item.exp_date!)
-  const nameLine = [item.name_en, item.name_zh].filter(Boolean).join(' / ') || '（未命名）'
-  const brand = item.brand_en || item.brand_zh || ''
-  const shadeLine = [
-    item.shade_en ? `#${item.shade_en}` : '',
-    item.shade_zh || '',
-  ].filter(Boolean).join(' / ')
+// ── 方案 A：2×N 卡片格 ────────────────────────────────────────────
+function ExpiryGridCards({ cards }: { cards: ExpiryCardInfo[] }) {
+  const active = cards.filter(c => c.count > 0)
+  if (active.length === 0) return null
+
   return (
-    <li>
-      <Link
-        to={`/items/${item.id}`}
-        className="flex items-center justify-between px-4 py-3 hover:bg-[var(--color-bg-muted)] transition-colors"
-      >
-        <div className="min-w-0">
-          {brand && <p className="text-xs text-[var(--color-text-muted)] truncate">{brand}</p>}
-          <p className="text-sm text-[var(--color-text)] truncate">{nameLine}</p>
-          {shadeLine && <p className="text-xs text-[var(--color-text-muted)] truncate">{shadeLine}</p>}
-        </div>
-        <div className="text-right flex-shrink-0 ml-3">
-          <span className="text-xs text-[var(--color-text-muted)]">
-            {daysLeft < 0 ? `過期 ${Math.abs(daysLeft)} 天` : daysLeft === 0 ? '今日到期' : `剩 ${daysLeft} 天`}
+    <div className="grid grid-cols-2 gap-2">
+      {active.map((card) => (
+        <Link
+          key={card.level}
+          to={`/expiry?filter=${card.filter}`}
+          className="rounded-2xl p-3.5 border flex flex-col gap-1 transition-opacity active:opacity-70"
+          style={{
+            backgroundColor: `${expiryColors[card.level]}14`,
+            borderColor: `${expiryColors[card.level]}30`,
+          }}
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium" style={{ color: expiryColors[card.level] }}>
+              {card.label}
+            </span>
+            <span
+              className="text-xs px-1.5 py-0.5 rounded-full font-semibold"
+              style={{ backgroundColor: `${expiryColors[card.level]}22`, color: expiryColors[card.level] }}
+            >
+              {card.count}
+            </span>
+          </div>
+          <p className="text-xs text-[var(--color-text-muted)]">{card.sublabel}</p>
+        </Link>
+      ))}
+    </div>
+  )
+}
+
+// ── 方案 C：自適應 grid，不滑動 ──────────────────────────────────
+function ExpiryScrollCards({ cards }: { cards: ExpiryCardInfo[] }) {
+  const active = cards.filter(c => c.count > 0)
+  if (active.length === 0) return null
+
+  const cols = active.length <= 3 ? active.length : active.length === 4 ? 4 : 5
+
+  return (
+    <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
+      {active.map((card) => (
+        <Link
+          key={card.level}
+          to={`/expiry?filter=${card.filter}`}
+          className="rounded-2xl p-3 border flex flex-col gap-1.5 transition-opacity active:opacity-70 min-w-0"
+          style={{
+            backgroundColor: `${expiryColors[card.level]}14`,
+            borderColor: `${expiryColors[card.level]}30`,
+          }}
+        >
+          <span
+            className="text-2xl font-bold leading-none"
+            style={{ color: expiryColors[card.level] }}
+          >
+            {card.count}
           </span>
-          <p className="text-xs text-[var(--color-text-muted)]">{format(parseISO(item.exp_date!), 'MM/dd')}</p>
-        </div>
-      </Link>
-    </li>
+          <div>
+            <p className="text-xs font-medium truncate" style={{ color: expiryColors[card.level] }}>
+              {card.label}
+            </p>
+            <p className="text-xs text-[var(--color-text-muted)] mt-0.5 truncate">{card.sublabel}</p>
+          </div>
+        </Link>
+      ))}
+    </div>
   )
 }
 
 export default function HomePage() {
   const [items, setItems] = useState<Item[]>([])
   const [loading, setLoading] = useState(true)
-  const [expanded, setExpanded] = useState<string | null>(null)
-  const [watchingOpen, setWatchingOpen] = useState(false)
 
   useEffect(() => {
     getItems().then(({ data }) => {
@@ -58,21 +115,21 @@ export default function HomePage() {
 
   const notWatching = (i: Item) => i.disposal_status !== 'disposed' && i.disposal_status !== 'watching'
 
-  const expiryGroups: ExpiryGroup[] = ([
-    { level: 'urgent'  as const, label: '緊急', items: items.filter((i) => i.exp_date && notWatching(i) && getExpiryLevel(i.exp_date) === 'urgent') },
-    { level: 'warning' as const, label: '警告', items: items.filter((i) => i.exp_date && notWatching(i) && getExpiryLevel(i.exp_date) === 'warning') },
-    { level: 'caution' as const, label: '注意', items: items.filter((i) => i.exp_date && notWatching(i) && getExpiryLevel(i.exp_date) === 'caution') },
-    { level: 'notice'  as const, label: '通知', items: items.filter((i) => i.exp_date && notWatching(i) && getExpiryLevel(i.exp_date) === 'notice') },
-    { level: 'expired' as const, label: '已過期（未處理）', items: items.filter((i) => i.exp_date && notWatching(i) && getExpiryLevel(i.exp_date) === 'expired') },
-  ] as ExpiryGroup[]).filter((g) => g.items.length > 0)
+  const expiryCards: ExpiryCardInfo[] = EXPIRY_CARD_DEFS.map(def => ({
+    ...def,
+    count: items.filter(i => i.exp_date && notWatching(i) && getExpiryLevel(i.exp_date) === def.level).length,
+  }))
 
-  const totalExpiring = expiryGroups.reduce((s, g) => s + g.items.length, 0)
+  const totalExpiring = expiryCards.reduce((s, c) => s + c.count, 0)
   const watchingItems = items.filter((i) => i.disposal_status === 'watching')
 
   return (
     <div>
       <div className="mb-6">
-        <h2 className="text-2xl font-semibold text-[var(--color-primary)]">BeautyVault</h2>
+        <h2 className="text-2xl font-semibold text-[var(--color-primary)] flex items-center gap-2">
+          <PawPrint size={22} strokeWidth={1.5} fill="var(--color-primary)" className="text-[var(--color-primary)] flex-shrink-0" />
+          Beauty Vault
+        </h2>
         <p className="text-sm text-[var(--color-text-muted)] mt-0.5">{format(new Date(), 'yyyy年M月d日')}</p>
       </div>
 
@@ -83,7 +140,7 @@ export default function HomePage() {
           <Link to="/expiry" className="text-xs text-[var(--color-primary)] hover:underline min-h-0">管理 →</Link>
         </div>
         {loading ? (
-          <Skeleton className="h-16 rounded-2xl" />
+          <Skeleton className="h-24 rounded-2xl" />
         ) : totalExpiring === 0 ? (
           <div className="bg-[var(--color-bg-muted)] rounded-2xl px-4 py-4 flex items-center gap-3">
             <CheckCircle size={22} strokeWidth={1.5} className="text-green-500 flex-shrink-0" />
@@ -92,99 +149,34 @@ export default function HomePage() {
               <p className="text-xs text-[var(--color-text-muted)]">所有品項均在安全期內</p>
             </div>
           </div>
+        ) : EXPIRY_STYLE === 'A' ? (
+          <ExpiryGridCards cards={expiryCards} />
         ) : (
-          <div className="space-y-2">
-            {expiryGroups.map((group) => (
-              <div key={group.level} className="rounded-2xl border border-[var(--color-border)] overflow-hidden">
-                <button
-                  onClick={() => setExpanded(expanded === group.level ? null : group.level)}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-left min-h-0"
-                  style={{ backgroundColor: `${expiryColors[group.level]}18` }}
-                >
-                  <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: expiryColors[group.level] }} />
-                  <div className="flex-1">
-                    <span className="text-sm font-semibold" style={{ color: expiryColors[group.level] }}>{group.label}</span>
-                    <span className="text-xs text-[var(--color-text-muted)] ml-2">{group.items.length} 筆</span>
-                    <span className="text-xs text-[var(--color-text-muted)] ml-1.5">
-                      {group.level === 'urgent'  && '（7 天內）'}
-                      {group.level === 'warning' && '（8–30 天）'}
-                      {group.level === 'caution' && '（1–3 個月）'}
-                      {group.level === 'notice'  && '（3–6 個月）'}
-                    </span>
-                  </div>
-                  {expanded === group.level
-                    ? <ChevronUp size={16} strokeWidth={1.5} className="text-[var(--color-text-muted)]" />
-                    : <ChevronDown size={16} strokeWidth={1.5} className="text-[var(--color-text-muted)]" />
-                  }
-                </button>
-                {expanded === group.level && (
-                  <ul className="divide-y divide-[var(--color-border)] bg-[var(--color-bg-card)]">
-                    {group.items.map((item) => <ExpiryItemRow key={item.id} item={item} />)}
-                  </ul>
-                )}
-              </div>
-            ))}
-          </div>
+          <ExpiryScrollCards cards={expiryCards} />
         )}
       </section>
 
-      {/* 觀察區 */}
+      {/* 觀察中 */}
       {!loading && watchingItems.length > 0 && (
         <section className="mb-5">
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-sm font-semibold text-[var(--color-text-muted)]">觀察中</h3>
-            <Link to="/expiry" className="text-xs text-[var(--color-primary)] hover:underline min-h-0">管理 →</Link>
+            <Link to="/expiry?tab=watching" className="text-xs text-[var(--color-primary)] hover:underline min-h-0">管理 →</Link>
           </div>
-          <div className="rounded-2xl border border-[var(--color-border)] overflow-hidden">
-            <button
-              onClick={() => setWatchingOpen((v) => !v)}
-              className="w-full flex items-center gap-3 px-4 py-3 text-left min-h-0 bg-[var(--color-accent)]/10"
-            >
-              <Eye size={14} strokeWidth={1.5} style={{ color: expiryColors['notice'] }} className="flex-shrink-0" />
-              <div className="flex-1">
-                <span className="text-sm font-semibold" style={{ color: expiryColors['notice'] }}>觀察中</span>
-                <span className="text-xs text-[var(--color-text-muted)] ml-2">{watchingItems.length} 筆</span>
-              </div>
-              {watchingOpen
-                ? <ChevronUp size={16} strokeWidth={1.5} className="text-[var(--color-text-muted)]" />
-                : <ChevronDown size={16} strokeWidth={1.5} className="text-[var(--color-text-muted)]" />
-              }
-            </button>
-            {watchingOpen && (
-              <ul className="divide-y divide-[var(--color-border)] bg-[var(--color-bg-card)]">
-                {watchingItems.map((item) => {
-                  const nameLine = [item.name_en, item.name_zh].filter(Boolean).join(' / ') || '（未命名）'
-                  const brand = item.brand_en || item.brand_zh || ''
-                  const level = getExpiryLevel(item.exp_date)
-                  const daysLeft = item.exp_date ? getDaysLeft(item.exp_date) : null
-                  return (
-                    <li key={item.id}>
-                      <Link
-                        to={`/items/${item.id}`}
-                        className="flex items-center justify-between px-4 py-3 hover:bg-[var(--color-bg-muted)] transition-colors"
-                      >
-                        <div className="min-w-0">
-                          {brand && <p className="text-xs text-[var(--color-text-muted)] truncate">{brand}</p>}
-                          <p className="text-sm text-[var(--color-text)] truncate">{nameLine}</p>
-                        </div>
-                        {item.exp_date && daysLeft !== null && (
-                          <span className="text-xs flex-shrink-0 ml-3" style={{
-                            color: level === 'expired' || level === 'urgent' ? expiryColors[level] : 'var(--color-text-muted)'
-                          }}>
-                            {daysLeft < 0 ? `過期 ${Math.abs(daysLeft)} 天` : daysLeft === 0 ? '今日到期' : `剩 ${daysLeft} 天`}
-                          </span>
-                        )}
-                      </Link>
-                    </li>
-                  )
-                })}
-              </ul>
-            )}
-          </div>
+          <Link
+            to="/expiry?tab=watching"
+            className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg-card)] px-4 py-3 flex items-center gap-3 transition-opacity active:opacity-70"
+          >
+            <Eye size={16} strokeWidth={1.5} style={{ color: expiryColors['notice'] }} />
+            <span className="text-sm text-[var(--color-text)] flex-1">觀察中</span>
+            <span className="text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: `${expiryColors['notice']}18`, color: expiryColors['notice'] }}>
+              {watchingItems.length} 筆
+            </span>
+          </Link>
         </section>
       )}
 
-      {/* 快速入口 */}
+      {/* 快速操作 */}
       <section>
         <h3 className="text-sm font-semibold text-[var(--color-text-muted)] mb-2">快速操作</h3>
         <div className="grid grid-cols-2 gap-3">

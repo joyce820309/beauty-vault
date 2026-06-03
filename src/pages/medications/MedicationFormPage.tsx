@@ -1,4 +1,5 @@
 import { useEffect, useState, forwardRef } from 'react'
+import { AutoTextarea } from '@/components/ui/AutoTextarea'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ChevronLeft } from 'lucide-react'
 import { useForm, Controller } from 'react-hook-form'
@@ -111,12 +112,7 @@ export default function MedicationFormPage() {
         </Field>
 
         <Field label="備註">
-          <textarea
-            {...register('note')}
-            rows={3}
-            placeholder="診所名稱、醫師、其他說明…"
-            className="w-full px-3 py-2.5 rounded-xl border border-[var(--color-border)] text-sm text-[var(--color-text)] bg-[var(--color-bg-card)] focus:outline-none resize-none"
-          />
+          <AutoTextarea {...register('note')} placeholder="診所名稱、醫師、其他說明…" />
         </Field>
 
         <button

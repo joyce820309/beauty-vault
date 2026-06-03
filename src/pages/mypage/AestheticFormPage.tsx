@@ -1,4 +1,5 @@
 import { useEffect, useState, forwardRef } from 'react'
+import { AutoTextarea } from '@/components/ui/AutoTextarea'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ChevronLeft } from 'lucide-react'
 import { useForm, Controller } from 'react-hook-form'
@@ -126,12 +127,7 @@ export default function AestheticFormPage() {
         )} />
 
         <Field label="施作內容">
-          <textarea
-            {...register('description')}
-            rows={3}
-            placeholder="記錄施打部位、能量設定等細節…"
-            className="w-full px-3 py-2.5 rounded-xl border border-[var(--color-border)] text-sm text-[var(--color-text)] bg-[var(--color-bg-card)] focus:outline-none resize-none"
-          />
+          <AutoTextarea {...register('description')} placeholder="記錄施打部位、能量設定等細節…" />
         </Field>
 
         <Field label="總金額（NTD）">
@@ -148,12 +144,7 @@ export default function AestheticFormPage() {
         </Field>
 
         <Field label="備註">
-          <textarea
-            {...register('note')}
-            rows={2}
-            placeholder="選填"
-            className="w-full px-3 py-2.5 rounded-xl border border-[var(--color-border)] text-sm text-[var(--color-text)] bg-[var(--color-bg-card)] focus:outline-none resize-none"
-          />
+          <AutoTextarea {...register('note')} placeholder="選填" />
         </Field>
 
         <button

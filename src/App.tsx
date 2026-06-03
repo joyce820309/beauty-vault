@@ -19,6 +19,9 @@ import CategoriesPage from "@/pages/mypage/CategoriesPage";
 import MedicationListPage from "@/pages/medications/MedicationListPage";
 import MedicationDetailPage from "@/pages/medications/MedicationDetailPage";
 import MedicationFormPage from "@/pages/medications/MedicationFormPage";
+import ToolListPage from "@/pages/tools/ToolListPage";
+import ToolDetailPage from "@/pages/tools/ToolDetailPage";
+import ToolFormPage from "@/pages/tools/ToolFormPage";
 import { CategoriesProvider } from "@/contexts/CategoriesContext";
 
 export default function App() {
@@ -52,6 +55,10 @@ export default function App() {
             <Route path="my/medications/new" element={<MedicationFormPage />} />
             <Route path="my/medications/:id" element={<MedicationDetailPage />} />
             <Route path="my/medications/:id/edit" element={<MedicationFormPage />} />
+            <Route path="tools" element={<ToolListPage />} />
+            <Route path="tools/new" element={<ToolFormPage />} />
+            <Route path="tools/:id" element={<ToolDetailPage />} />
+            <Route path="tools/:id/edit" element={<ToolFormPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>

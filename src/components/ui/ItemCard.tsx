@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Sparkle, Droplets, Zap, Heart } from 'lucide-react'
+import { Sparkle, Palette, Milk, Zap, Heart } from 'lucide-react'
 import type { Item } from '@/types/database'
 import { getExpiryLevel, expiryColors } from '@/utils/expiry'
 import { useCategories } from '@/contexts/CategoriesContext'
@@ -93,18 +93,44 @@ export function ItemCard({ item: initialItem, onFlagChange }: { item: Item; onFl
       )}
 
         {/* 縮圖（點擊導航） */}
-        <button type="button" onClick={() => navigate(`/items/${item.id}`)} className="w-14 h-14 rounded-lg bg-[var(--color-bg-muted)] flex-shrink-0 overflow-hidden min-h-0 min-w-0">
-          {item.image_url ? (
-            <img src={item.image_url} alt={namePrimary} className="w-full h-full object-cover" />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-[var(--color-text-muted)]">
-              {item.item_type === 'makeup'
-                ? <Sparkle size={22} strokeWidth={1.5} />
-                : <Droplets size={22} strokeWidth={1.5} />
-              }
-            </div>
-          )}
-        </button>
+        {/* 縮圖：依分類顯示不同底色和 icon */}
+        {(() => {
+          const isMakeup = item.item_type === 'makeup'
+          const isSkincare = item.item_type === 'skincare'
+          const hasType = isMakeup || isSkincare
+
+          const bgStyle = !hasType
+            ? { backgroundColor: '#f4efef' }
+            : isMakeup
+            ? { backgroundColor: '#fce8ee' }   // 淡粉
+            : { backgroundColor: '#ede8f5' }    // 淡紫
+
+          const iconColor = !hasType
+            ? 'var(--color-text-muted)'
+            : isMakeup
+            ? '#c4768a'    // --color-primary
+            : '#9b8dc4'    // 淡紫深版
+
+          return (
+            <button type="button" onClick={() => navigate(`/items/${item.id}`)}
+              className="w-14 h-14 rounded-lg flex-shrink-0 overflow-hidden min-h-0 min-w-0"
+              style={item.image_url ? undefined : bgStyle}
+            >
+              {item.image_url ? (
+                <img src={item.image_url} alt={namePrimary} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  {!hasType
+                    ? <Sparkle size={22} strokeWidth={1.5} style={{ color: iconColor }} />
+                    : isMakeup
+                    ? <Palette size={22} strokeWidth={1.5} style={{ color: iconColor }} />
+                    : <Milk size={22} strokeWidth={1.5} style={{ color: iconColor }} />
+                  }
+                </div>
+              )}
+            </button>
+          )
+        })()}
 
         {/* 內容（點擊導航） */}
         <button type="button" onClick={() => navigate(`/items/${item.id}`)} className="flex-1 min-w-0 text-left min-h-0">

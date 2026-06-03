@@ -16,20 +16,36 @@ type SkinFilter = SensitiveSkinStatus | 'all'
 type StatusKey = 'expired' | 'urgent' | 'warning' | 'caution' | 'notice' | 'watching' | 'disposed'
 type ViewMode = 'card' | 'table'
 
-const STATUS_OPTIONS: { key: StatusKey; label: string; color?: string }[] = [
-  { key: 'expired',  label: '已過期', color: 'var(--color-text-muted)' },
-  { key: 'urgent',   label: '緊急',   color: '#C53030' },
-  { key: 'warning',  label: '警告',   color: '#DD6B20' },
-  { key: 'caution',  label: '注意',   color: '#D69E2E' },
-  { key: 'notice',   label: '通知',   color: '#4A90A4' },
-  { key: 'watching', label: '觀察中', color: 'var(--color-accent)' },
-  { key: 'disposed', label: '已丟棄', color: 'var(--color-text-muted)' },
+const STATUS_OPTIONS: { key: StatusKey; label: string; color: string; bg: string }[] = [
+  { key: 'expired',  label: '已過期', color: 'var(--color-text-muted)',  bg: 'var(--color-bg-muted)' },
+  { key: 'urgent',   label: '緊急',   color: 'var(--color-danger)',      bg: 'color-mix(in srgb, var(--color-danger) 15%, transparent)' },
+  { key: 'warning',  label: '警告',   color: 'var(--color-warning)',     bg: 'color-mix(in srgb, var(--color-warning) 15%, transparent)' },
+  { key: 'caution',  label: '注意',   color: 'var(--color-caution)',     bg: 'color-mix(in srgb, var(--color-caution) 15%, transparent)' },
+  { key: 'notice',   label: '通知',   color: 'var(--color-accent)',      bg: 'color-mix(in srgb, var(--color-accent) 15%, transparent)' },
+  { key: 'watching', label: '觀察中', color: 'var(--color-accent)',      bg: 'color-mix(in srgb, var(--color-accent) 15%, transparent)' },
+  { key: 'disposed', label: '已丟棄', color: 'var(--color-text-muted)',  bg: 'var(--color-bg-muted)' },
 ]
 type SortKey = 'seq_no' | 'created_at' | 'purchase_date' | 'exp_date' | 'brand' | 'name' | 'rating'
 type SortDir = 'asc' | 'desc'
 
-const LS_VIEW_KEY = 'beauty-vault:items-view'
-const LS_SORT_KEY = 'beauty-vault:items-sort'
+const LS_VIEW_KEY     = 'beauty-vault:items-view'
+const LS_SORT_KEY     = 'beauty-vault:items-sort'
+const LS_FILTER_KEY   = 'beauty-vault:items-filter'
+const LS_SEARCH_KEY   = 'beauty-vault:items-search'
+
+function getInitialFilters() {
+  try {
+    const saved = localStorage.getItem(LS_FILTER_KEY)
+    if (!saved) return { type: 'all' as TypeFilter, status: [] as StatusKey[], category: [] as string[], skin: 'all' as SkinFilter }
+    return JSON.parse(saved)
+  } catch {
+    return { type: 'all' as TypeFilter, status: [] as StatusKey[], category: [] as string[], skin: 'all' as SkinFilter }
+  }
+}
+
+function saveFilters(f: { type: TypeFilter; status: StatusKey[]; category: string[]; skin: SkinFilter }) {
+  try { localStorage.setItem(LS_FILTER_KEY, JSON.stringify(f)) } catch {}
+}
 
 const SORT_OPTIONS: { key: SortKey; label: string }[] = [
   { key: 'seq_no',        label: '#' },
@@ -57,25 +73,38 @@ function getInitialView(): ViewMode {
 const activeChip = 'bg-[var(--color-primary)] text-white'
 const inactiveChip = 'bg-[var(--color-bg-muted)] text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
 const activeSecondary = 'bg-[var(--color-text)] text-white'
-const inactiveSecondary = 'bg-[var(--color-bg-muted)] text-[var(--color-text-muted)]'
+const inactiveSecondary = 'text-[var(--color-text-muted)]'
+const inactiveCategoryStyle = { backgroundColor: 'rgba(222, 206, 213, 0.32)' }
 
 export default function ItemListPage() {
   const { items, loading, error } = useItems()
   const { makeupCategories, skincareCategories, makeupParents, skincareParents, getChildren } = useCategories()
-  const [search, setSearch] = useState('')
-  const [typeFilter, setTypeFilter] = useState<TypeFilter>('all')
-  const [skinFilter, setSkinFilter] = useState<SkinFilter>('all')
+  const [search, setSearch] = useState(() => {
+    try { return localStorage.getItem(LS_SEARCH_KEY) ?? '' } catch { return '' }
+  })
   const [view, setView] = useState<ViewMode>(getInitialView)
   const [sort, setSort] = useState(getInitialSort)
-  const [statusFilters, setStatusFilters] = useState<Set<StatusKey>>(new Set())
-  const [categoryFilters, setCategoryFilters] = useState<Set<string>>(new Set())
   const [showFilter, setShowFilter] = useState(false)
   const [hideDisposed, setHideDisposed] = useState(true)
+
+  const _init = getInitialFilters()
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>(_init.type)
+  const [skinFilter, setSkinFilter] = useState<SkinFilter>(_init.skin)
+  const [statusFilters, setStatusFilters] = useState<Set<StatusKey>>(new Set(_init.status))
+  const [categoryFilters, setCategoryFilters] = useState<Set<string>>(new Set(_init.category))
+
+  function persist(patch: Partial<{ type: TypeFilter; status: StatusKey[]; category: string[]; skin: SkinFilter }>) {
+    saveFilters({
+      type: typeFilter, status: [...statusFilters], category: [...categoryFilters], skin: skinFilter,
+      ...patch,
+    })
+  }
 
   function toggleStatus(key: StatusKey) {
     setStatusFilters(prev => {
       const next = new Set(prev)
       next.has(key) ? next.delete(key) : next.add(key)
+      persist({ status: [...next] })
       return next
     })
   }
@@ -84,6 +113,7 @@ export default function ItemListPage() {
     setCategoryFilters(prev => {
       const next = new Set(prev)
       next.has(val) ? next.delete(val) : next.add(val)
+      persist({ category: [...next] })
       return next
     })
   }
@@ -128,7 +158,7 @@ export default function ItemListPage() {
       }
       if (search.trim()) {
         const q = search.toLowerCase()
-        const fields = [item.brand_zh, item.brand_en, item.name_zh, item.name_en, item.shade_zh, item.shade_en]
+        const fields = [item.brand_zh, item.brand_en, item.name_zh, item.name_en, item.shade_zh, item.shade_en, item.purchase_date, item.exp_date, item.mfg_date]
         if (!fields.some((f) => f?.toLowerCase().includes(q))) return false
       }
       return true
@@ -208,13 +238,13 @@ export default function ItemListPage() {
         <input
           type="text"
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => { setSearch(e.target.value); try { localStorage.setItem(LS_SEARCH_KEY, e.target.value) } catch {} }}
           placeholder="搜尋品牌、品名、色號…"
           className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-[var(--color-border)] text-sm text-[var(--color-text)] bg-[var(--color-bg-muted)] focus:outline-none focus:border-[var(--color-primary)]"
         />
         {search && (
           <button
-            onClick={() => setSearch('')}
+            onClick={() => { setSearch(''); try { localStorage.removeItem(LS_SEARCH_KEY) } catch {} }}
             className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] min-h-0 min-w-0 w-5 h-5 flex items-center justify-center"
           >
             <X size={14} strokeWidth={2} />
@@ -244,6 +274,7 @@ export default function ItemListPage() {
                   setHideDisposed(disposed)
                   setCategoryFilters(new Set())
                   setSkinFilter('all')
+                  persist({ type, category: [], skin: 'all' })
                 }}
                 className={`flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-colors min-h-0 ${
                   isActive ? activeChip : inactiveChip
@@ -286,16 +317,17 @@ export default function ItemListPage() {
           <div>
             <p className="text-xs text-[var(--color-text-muted)] mb-1.5 font-medium">效期狀態 <span className="opacity-60">（可多選）</span></p>
             <div className="flex gap-1.5 flex-wrap">
-              {STATUS_OPTIONS.map(({ key, label, color }) => {
+              {STATUS_OPTIONS.map(({ key, label, color, bg }) => {
                 const active = statusFilters.has(key)
                 return (
                   <button
                     key={key}
                     onClick={() => toggleStatus(key)}
-                    className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors min-h-0 border ${
-                      active ? 'text-white border-transparent' : 'bg-[var(--color-bg-card)] text-[var(--color-text-muted)] border-[var(--color-border)]'
-                    }`}
-                    style={active ? { backgroundColor: color } : {}}
+                    className="px-2.5 py-1 rounded-full text-xs font-medium transition-colors min-h-0 border border-transparent"
+                    style={active
+                      ? { backgroundColor: bg, color, borderColor: 'transparent' }
+                      : { backgroundColor: 'var(--color-bg-card)', color: 'var(--color-text-muted)', borderColor: 'var(--color-border)' }
+                    }
                   >
                     {label}
                   </button>
@@ -344,38 +376,44 @@ export default function ItemListPage() {
                             {parent.label}
                           </button>
                           <div className="flex gap-1.5 flex-wrap pl-1">
-                            {kids.map(c => (
-                              <button key={c.value} onClick={() => toggleCategory(c.value)}
-                                className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors min-h-0 ${
-                                  categoryFilters.has(c.value) ? activeSecondary : inactiveSecondary
-                                }`}>
-                                {c.label}
-                              </button>
-                            ))}
+                            {kids.map(c => {
+                              const active = categoryFilters.has(c.value)
+                              return (
+                                <button key={c.value} onClick={() => toggleCategory(c.value)}
+                                  className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors min-h-0 ${active ? activeSecondary : inactiveSecondary}`}
+                                  style={active ? undefined : inactiveCategoryStyle}>
+                                  {c.label}
+                                </button>
+                              )
+                            })}
                           </div>
                         </div>
                       )
                     })}
                     {/* 未分組子類 */}
-                    {flatLeafs.filter(c => !parents.some(p => p.id === c.parent_id)).map(c => (
-                      <button key={c.value} onClick={() => toggleCategory(c.value)}
-                        className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors min-h-0 ${
-                          categoryFilters.has(c.value) ? activeSecondary : inactiveSecondary
-                        }`}>
-                        {c.label}
-                      </button>
-                    ))}
+                    {flatLeafs.filter(c => !parents.some(p => p.id === c.parent_id)).map(c => {
+                      const active = categoryFilters.has(c.value)
+                      return (
+                        <button key={c.value} onClick={() => toggleCategory(c.value)}
+                          className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors min-h-0 ${active ? activeSecondary : inactiveSecondary}`}
+                          style={active ? undefined : inactiveCategoryStyle}>
+                          {c.label}
+                        </button>
+                      )
+                    })}
                   </div>
                 ) : (
                   <div className="flex gap-1.5 flex-wrap">
-                    {flatLeafs.map(c => (
-                      <button key={c.value} onClick={() => toggleCategory(c.value)}
-                        className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors min-h-0 ${
-                          categoryFilters.has(c.value) ? activeSecondary : inactiveSecondary
-                        }`}>
-                        {c.label}
-                      </button>
-                    ))}
+                    {flatLeafs.map(c => {
+                      const active = categoryFilters.has(c.value)
+                      return (
+                        <button key={c.value} onClick={() => toggleCategory(c.value)}
+                          className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors min-h-0 ${active ? activeSecondary : inactiveSecondary}`}
+                          style={active ? undefined : inactiveCategoryStyle}>
+                          {c.label}
+                        </button>
+                      )
+                    })}
                   </div>
                 )}
               </div>
@@ -388,7 +426,7 @@ export default function ItemListPage() {
               <p className="text-xs text-[var(--color-text-muted)] mb-1.5 font-medium">敏感肌</p>
               <div className="flex gap-1.5 flex-wrap">
                 <button
-                  onClick={() => setSkinFilter('all')}
+                  onClick={() => { setSkinFilter('all'); persist({ skin: 'all' }) }}
                   className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors min-h-0 ${
                     skinFilter === 'all' ? activeSecondary : inactiveSecondary
                   }`}
@@ -398,7 +436,7 @@ export default function ItemListPage() {
                 {SENSITIVE_SKIN_OPTIONS.map((o) => (
                   <button
                     key={o.value}
-                    onClick={() => setSkinFilter(o.value)}
+                    onClick={() => { setSkinFilter(o.value); persist({ skin: o.value }) }}
                     className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors min-h-0 ${
                       skinFilter === o.value ? activeSecondary : inactiveSecondary
                     }`}
@@ -413,7 +451,7 @@ export default function ItemListPage() {
           {/* 清除全部 */}
           {(statusFilters.size > 0 || categoryFilters.size > 0 || skinFilter !== 'all') && (
             <button
-              onClick={() => { setStatusFilters(new Set()); setCategoryFilters(new Set()); setSkinFilter('all') }}
+              onClick={() => { setStatusFilters(new Set()); setCategoryFilters(new Set()); setSkinFilter('all'); persist({ status: [], category: [], skin: 'all' }) }}
               className="text-xs text-[var(--color-primary)] hover:underline min-h-0"
             >
               清除全部篩選
