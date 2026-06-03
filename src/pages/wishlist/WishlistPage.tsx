@@ -406,6 +406,7 @@ export default function WishlistPage() {
       is_sample:        false,
       is_favorite:      false,
       volume_ml:        null,
+      channel:          null,
     })
 
     if (error || !newItem) {

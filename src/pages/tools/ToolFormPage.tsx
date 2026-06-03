@@ -35,7 +35,7 @@ const schema = z.object({
   clean_cycle_days: z.coerce.number().int().positive().optional().or(z.literal('')),
   last_cleaned_at: z.string().optional(),
   rating: z.coerce.number().int().min(1).max(5).optional().or(z.literal('')),
-  sensitive_skin_ok: z.enum(['ok', 'ng', 'untested']).optional(),
+  sensitive_skin_ok: z.enum(['all_ok', 'avoid_postop', 'sensitive_avoid', 'ng', 'untested', 'ok']).optional(),
   note: z.string().optional(),
 })
 
