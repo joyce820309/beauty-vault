@@ -9,7 +9,8 @@
       "Bash(npx vercel *)",
       "Read(//c/Users/Gigabyte/AppData/Local/Temp/**)",
       "Bash(node -e \"console.log\\(process.version\\)\")",
-      "Bash(node -e \"const pw = require\\('playwright'\\); console.log\\(typeof pw.chromium\\);\")"
+      "Bash(node -e \"const pw = require\\('playwright'\\); console.log\\(typeof pw.chromium\\);\")",
+      "Bash(npx supabase *)"
     ]
   }
 }

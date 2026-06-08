@@ -1,33 +1,14 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Download, X } from 'lucide-react'
-
-interface BeforeInstallPromptEvent extends Event {
-  prompt: () => Promise<void>
-  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
-}
+import { useInstallPrompt } from '@/hooks/useInstallPrompt'
 
 export function InstallPrompt() {
-  const [prompt, setPrompt] = useState<BeforeInstallPromptEvent | null>(null)
+  const { prompt, install } = useInstallPrompt()
   const [dismissed, setDismissed] = useState(
     () => localStorage.getItem('bv-install-dismissed') === '1'
   )
 
-  useEffect(() => {
-    function handler(e: Event) {
-      e.preventDefault()
-      setPrompt(e as BeforeInstallPromptEvent)
-    }
-    window.addEventListener('beforeinstallprompt', handler)
-    return () => window.removeEventListener('beforeinstallprompt', handler)
-  }, [])
-
   if (!prompt || dismissed) return null
-
-  async function install() {
-    await prompt!.prompt()
-    const { outcome } = await prompt!.userChoice
-    if (outcome === 'accepted') setPrompt(null)
-  }
 
   function dismiss() {
     setDismissed(true)
@@ -41,7 +22,7 @@ export function InstallPrompt() {
           <Download size={18} strokeWidth={1.5} className="text-[var(--color-primary)]" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-[var(--color-text)]">安裝 BeautyVault</p>
+          <p className="text-sm font-medium text-[var(--color-text)]">安裝 Beauty Vault</p>
           <p className="text-xs text-[var(--color-text-muted)] mt-0.5">加入桌面，隨時快速開啟</p>
           <button
             onClick={install}

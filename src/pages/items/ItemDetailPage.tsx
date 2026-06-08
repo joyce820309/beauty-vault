@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
-import { getItemById, deleteItem, updateDisposalStatus, updateItemFlag, createItem } from '@/lib/supabase/items'
+import { getItemById, deleteItem, updateDisposalStatus, updateItemFlag, createItem, updateDisposalWithReason, updateDisposalReason, updateIgnoreHealth } from '@/lib/supabase/items'
+import { DisposalReasonModal } from '@/components/ui/DisposalReasonModal'
 import { QuickClassify } from '@/components/ui/QuickClassify'
 import { NoteContent } from '@/components/ui/AutoTextarea'
 import { ExpiryBadge, SensitiveBadge, PriceBadge, DisposalBadge } from '@/components/ui/Badge'
@@ -9,8 +10,8 @@ import { Lightbox } from '@/components/ui/Lightbox'
 import { getExpiryLevel } from '@/utils/expiry'
 import { useToast } from '@/components/ui/Toast'
 import { format, parseISO } from 'date-fns'
-import { Eye, EyeOff, Trash2, RotateCcw, Heart, Zap, Copy } from 'lucide-react'
-import type { Item, DisposalStatus } from '@/types/database'
+import { Eye, EyeOff, Trash2, RotateCcw, Heart, Zap, Copy, CircleCheckBig, ShieldOff } from 'lucide-react'
+import type { Item, DisposalStatus, DisposalReason } from '@/types/database'
 function fmt(d: string | null) {
   if (!d) return '—'
   return format(parseISO(d), 'yyyy-MM-dd')
@@ -35,6 +36,7 @@ export default function ItemDetailPage() {
   const [lightboxOpen, setLightboxOpen] = useState(false)
   const [statusUpdating, setStatusUpdating] = useState(false)
   const [flagConfirm, setFlagConfirm] = useState<'is_favorite' | 'is_dud' | null>(null)
+  const [showDisposalModal, setShowDisposalModal] = useState(false)
   const { showToast } = useToast()
 
   async function handleFlagToggle(flag: 'is_favorite' | 'is_dud') {
@@ -77,13 +79,48 @@ export default function ItemDetailPage() {
     if (error) {
       showToast('更新失敗', 'error')
     } else {
-      setItem({ ...item, disposal_status: next })
+      setItem({ ...item, disposal_status: next, disposal_reason: next !== 'disposed' ? null : item.disposal_reason })
       const msg = next === 'watching' ? '已標記為觀察中'
         : next === 'disposed' ? '已標記為已丟棄'
         : '已恢復為待處理'
       showToast(msg)
     }
     setStatusUpdating(false)
+  }
+
+  async function handleDispose(reason: DisposalReason) {
+    if (!item) return
+    setStatusUpdating(true)
+    const { error } = await updateDisposalWithReason(item.id, reason)
+    if (error) { showToast('更新失敗', 'error') }
+    else {
+      setItem({ ...item, disposal_status: 'disposed', disposal_reason: reason })
+      showToast(reason === 'finished' ? '已記錄為用完 ✅' : '已記錄為提早丟棄')
+    }
+    setStatusUpdating(false)
+    setShowDisposalModal(false)
+  }
+
+  async function handleReasonChange(reason: DisposalReason) {
+    if (!item) return
+    setStatusUpdating(true)
+    const { error } = await updateDisposalReason(item.id, reason)
+    if (error) { showToast('更新失敗', 'error') }
+    else {
+      setItem({ ...item, disposal_reason: reason })
+      showToast('丟棄原因已更新')
+    }
+    setStatusUpdating(false)
+    setShowDisposalModal(false)
+  }
+
+  async function handleIgnoreHealthToggle() {
+    if (!item) return
+    const next = !item.ignore_health
+    const { error } = await updateIgnoreHealth(item.id, next)
+    if (error) { showToast('更新失敗', 'error'); return }
+    setItem({ ...item, ignore_health: next })
+    showToast(next ? '已忽略健康度計算' : '已恢復健康度計算')
   }
 
   async function handleDelete() {
@@ -159,6 +196,17 @@ export default function ItemDetailPage() {
             title="複製此品項"
           >
             <Copy size={15} strokeWidth={1.5} />
+          </button>
+          <button
+            onClick={handleIgnoreHealthToggle}
+            className={`w-9 h-9 flex items-center justify-center rounded-full border min-h-0 min-w-0 transition-colors ${
+              item.ignore_health
+                ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/10 text-[var(--color-accent)]'
+                : 'border-[var(--color-border)] text-[var(--color-text-muted)] hover:border-[var(--color-text-muted)]'
+            }`}
+            title={item.ignore_health ? '已忽略健康度（點擊恢復）' : '忽略健康度計算'}
+          >
+            <ShieldOff size={15} strokeWidth={1.5} />
           </button>
           <Link
             to="/items/new"
@@ -301,44 +349,74 @@ export default function ItemDetailPage() {
       )}
 
       {/* 處置狀態操作列 */}
-      <div className="flex border border-[var(--color-border)] rounded-2xl overflow-hidden bg-[var(--color-bg-card)] mb-4">
-        {item.disposal_status === 'disposed' ? (
+      {item.disposal_status === 'disposed' ? (
+        <div className="border border-[var(--color-border)] rounded-2xl overflow-hidden bg-[var(--color-bg-card)] mb-4">
+          {/* 丟棄原因顯示 + 可修改 */}
+          <button
+            onClick={() => setShowDisposalModal(true)}
+            disabled={statusUpdating}
+            className="w-full flex items-center gap-3 px-4 py-3 border-b border-[var(--color-border)] hover:bg-[var(--color-bg-muted)] transition-colors min-h-0"
+          >
+            {item.disposal_reason === 'finished'
+              ? <CircleCheckBig size={16} strokeWidth={1.5} className="text-[var(--color-text-muted)]" />
+              : <Trash2 size={16} strokeWidth={1.5} className="text-[var(--color-text-muted)]" />
+            }
+            <div className="flex-1 text-left">
+              <p className="text-xs text-[var(--color-text-muted)]">丟棄原因</p>
+              <p className="text-sm font-medium text-[var(--color-text)]">
+                {item.disposal_reason === 'finished' ? '已用完'
+                  : item.disposal_reason === 'discarded' ? '未用完丟棄'
+                  : '尚未記錄'}
+              </p>
+            </div>
+            <span className="text-xs text-[var(--color-primary)]">修改</span>
+          </button>
           <button
             onClick={() => handleStatusChange('kept')}
             disabled={statusUpdating}
-            className="flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium text-[var(--color-primary)] hover:bg-[var(--color-primary-light)] transition-colors min-h-0 disabled:opacity-50"
+            className="w-full flex items-center justify-center gap-2 py-3 text-sm font-medium text-[var(--color-primary)] hover:bg-[var(--color-primary-light)] transition-colors min-h-0 disabled:opacity-50"
           >
             <RotateCcw size={14} strokeWidth={2} />
             恢復待處理
           </button>
-        ) : (
-          <>
-            <button
-              onClick={() => handleStatusChange(item.disposal_status === 'watching' ? 'kept' : 'watching')}
-              disabled={statusUpdating}
-              className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium transition-colors min-h-0 disabled:opacity-50 ${
-                item.disposal_status === 'watching'
-                  ? 'text-[var(--color-accent)] bg-[var(--color-accent)]/10 hover:bg-[var(--color-accent)]/20'
-                  : 'text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10'
-              }`}
-            >
-              {item.disposal_status === 'watching'
-                ? <><EyeOff size={14} strokeWidth={1.5} />取消觀察</>
-                : <><Eye size={14} strokeWidth={1.5} />標記觀察中</>
-              }
-            </button>
-            <div className="w-px bg-[var(--color-border)]" />
-            <button
-              onClick={() => handleStatusChange('disposed')}
-              disabled={statusUpdating}
-              className="flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium text-[var(--color-primary)] hover:bg-[var(--color-primary-light)] transition-colors min-h-0 disabled:opacity-50"
-            >
-              <Trash2 size={14} strokeWidth={1.5} />
-              標記已丟棄
-            </button>
-          </>
-        )}
-      </div>
+        </div>
+      ) : (
+        <div className="flex border border-[var(--color-border)] rounded-2xl overflow-hidden bg-[var(--color-bg-card)] mb-4">
+          <button
+            onClick={() => handleStatusChange(item.disposal_status === 'watching' ? 'kept' : 'watching')}
+            disabled={statusUpdating}
+            className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium transition-colors min-h-0 disabled:opacity-50 ${
+              item.disposal_status === 'watching'
+                ? 'text-[var(--color-accent)] bg-[var(--color-accent)]/10 hover:bg-[var(--color-accent)]/20'
+                : 'text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10'
+            }`}
+          >
+            {item.disposal_status === 'watching'
+              ? <><EyeOff size={14} strokeWidth={1.5} />取消觀察</>
+              : <><Eye size={14} strokeWidth={1.5} />標記觀察中</>
+            }
+          </button>
+          <div className="w-px bg-[var(--color-border)]" />
+          <button
+            onClick={() => setShowDisposalModal(true)}
+            disabled={statusUpdating}
+            className="flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium text-[var(--color-primary)] hover:bg-[var(--color-primary-light)] transition-colors min-h-0 disabled:opacity-50"
+          >
+            <Trash2 size={14} strokeWidth={1.5} />
+            標記已丟棄
+          </button>
+        </div>
+      )}
+
+      {/* 丟棄原因 Modal */}
+      {showDisposalModal && (
+        <DisposalReasonModal
+          current={item.disposal_reason}
+          onSelect={item.disposal_status === 'disposed' ? handleReasonChange : handleDispose}
+          onCancel={() => setShowDisposalModal(false)}
+          loading={statusUpdating}
+        />
+      )}
 
       <div className="h-8" />
     </div>

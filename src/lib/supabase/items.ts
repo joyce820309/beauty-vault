@@ -39,6 +39,7 @@ export async function getDataHealthCounts(): Promise<{ noCategory: number; noExp
   const base = () => supabase.from('items').select('*', { count: 'exact', head: true })
     .neq('disposal_status', 'disposed')
     .or('price_type.is.null,price_type.neq.present')
+    .neq('ignore_health', true)
   const [cat, exp, pur, chan] = await Promise.all([
     base().is('category', null),
     base().is('exp_date', null),
@@ -104,6 +105,30 @@ export async function updateDisposalStatus(id: number, status: 'kept' | 'dispose
     .single()
 }
 
+export async function updateDisposalWithReason(
+  id: number,
+  reason: 'finished' | 'discarded'
+) {
+  return supabase
+    .from('items')
+    .update({ disposal_status: 'disposed', disposal_reason: reason })
+    .eq('id', id)
+    .select()
+    .single()
+}
+
+export async function updateDisposalReason(
+  id: number,
+  reason: 'finished' | 'discarded' | null
+) {
+  return supabase
+    .from('items')
+    .update({ disposal_reason: reason })
+    .eq('id', id)
+    .select()
+    .single()
+}
+
 export async function updateItemFlag(id: number, flag: 'is_favorite' | 'is_dud', value: boolean) {
   // 互斥：設 is_favorite=true 時清除 is_dud，反之亦然
   const update: Record<string, boolean> = { [flag]: value }
@@ -112,6 +137,10 @@ export async function updateItemFlag(id: number, flag: 'is_favorite' | 'is_dud',
     if (flag === 'is_dud') update.is_favorite = false
   }
   return supabase.from('items').update(update).eq('id', id).select().single()
+}
+
+export async function updateIgnoreHealth(id: number, ignore: boolean) {
+  return supabase.from('items').update({ ignore_health: ignore }).eq('id', id).select().single()
 }
 
 export async function getFavoriteItems() {

@@ -734,9 +734,13 @@ export default function ItemFormPage() {
                 />
                 <button
                   type="button"
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.preventDefault();
                     setImageFile(null);
                     setImagePreview(null);
+                    const input = (e.currentTarget.closest('label') as HTMLLabelElement)
+                      ?.querySelector('input[type="file"]') as HTMLInputElement | null;
+                    if (input) input.value = '';
                   }}
                   className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full text-xs flex items-center justify-center min-h-0 min-w-0"
                 >

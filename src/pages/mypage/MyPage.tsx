@@ -11,7 +11,9 @@ import {
   Pill,
   Wrench,
   Activity,
+  Download,
 } from "lucide-react";
+import { useInstallPrompt } from "@/hooks/useInstallPrompt";
 import type { LucideIcon } from "lucide-react";
 import { getDataHealthCounts } from "@/lib/supabase/items";
 
@@ -57,6 +59,7 @@ function HealthRow({ label, count, to }: { label: string; count: number; to: str
 
 export default function MyPage() {
   const [health, setHealth] = useState<HealthCounts | null>(null)
+  const { prompt, install } = useInstallPrompt()
 
   useEffect(() => {
     getDataHealthCounts().then(setHealth)
@@ -93,6 +96,21 @@ export default function MyPage() {
           ))}
         </div>
       </div>
+
+      {/* 安裝到桌面 */}
+      {prompt && (
+        <button
+          onClick={install}
+          className="w-full flex items-center gap-3 p-4 rounded-xl border border-[var(--color-primary)]/40 bg-[var(--color-primary-light)] hover:bg-[var(--color-primary-light)]/80 transition-colors mb-2"
+        >
+          <Download size={18} strokeWidth={1.5} className="text-[var(--color-primary)]" />
+          <div className="flex-1 text-left">
+            <p className="font-medium text-[var(--color-primary)] text-sm">安裝到桌面</p>
+            <p className="text-xs text-[var(--color-text-muted)]">加入主畫面，隨時快速開啟</p>
+          </div>
+          <ChevronRight size={16} strokeWidth={1.5} className="text-[var(--color-primary)]" />
+        </button>
+      )}
 
       {/* 功能選單 */}
       <div className="space-y-2">

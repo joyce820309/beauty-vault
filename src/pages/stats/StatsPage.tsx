@@ -1,13 +1,14 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer,
-  LineChart, Line, XAxis, YAxis, CartesianGrid,
+  PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Legend,
 } from 'recharts'
 import { useItems } from '@/hooks/useItems'
 import { useStats, filterTrend, type TrendRange } from '@/hooks/useStats'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { useTheme } from '@/contexts/ThemeContext'
+import { useCategories } from '@/contexts/CategoriesContext'
 import type { Item } from '@/types/database'
 
 const THEME_COLORS = {
@@ -52,14 +53,12 @@ function PieSection({
   const total = data.reduce((s, d) => s + d.value, 0)
   const tooltipStyle = theme === 'light'
     ? {
-        backgroundColor: 'rgba(255,250,250,0.18)',
-        backdropFilter: 'blur(16px)',
-        border: '1px solid rgba(255,255,255,0.45)',
+        backgroundColor: 'rgba(255,250,250,0.95)',
+        border: '1px solid rgba(196,118,138,0.2)',
         boxShadow: '0 4px 24px rgba(196,118,138,0.12)',
       }
     : {
-        backgroundColor: 'rgba(255,255,255,0.08)',
-        backdropFilter: 'blur(16px)',
+        backgroundColor: 'rgba(40,32,36,0.95)',
         border: '1px solid rgba(255,255,255,0.14)',
         boxShadow: '0 4px 24px rgba(0,0,0,0.30)',
       }
@@ -93,17 +92,19 @@ function PieSection({
           ))}
         </div>
       </div>
-      <ResponsiveContainer width="100%" height={220}>
+
+      {/* 實心圓餅圖，固定高度不含 legend */}
+      <ResponsiveContainer width="100%" height={200}>
         <PieChart>
           <Pie
             data={data}
             cx="50%"
             cy="50%"
-            innerRadius={50}
-            outerRadius={80}
-            paddingAngle={2}
+            outerRadius={88}
+            paddingAngle={1}
             dataKey="value"
             stroke="none"
+            minAngle={3}
           >
             {data.map((_, idx) => (
               <Cell key={idx} fill={colors[idx % colors.length]} stroke="none" />
@@ -116,7 +117,7 @@ function PieSection({
                 : [`NT$ ${value.toLocaleString()}`, name]
             }
             contentStyle={{
-              borderRadius: 14,
+              borderRadius: 12,
               fontSize: 12,
               color: 'var(--color-text)',
               ...tooltipStyle,
@@ -124,15 +125,24 @@ function PieSection({
             labelStyle={{ color: 'var(--color-text)', fontSize: 12 }}
             itemStyle={{ color: 'var(--color-text)' }}
           />
-          <Legend
-            iconType="circle"
-            iconSize={8}
-            formatter={(value) => (
-              <span style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>{value}</span>
-            )}
-          />
         </PieChart>
       </ResponsiveContainer>
+
+      {/* 自訂 legend：2 欄 grid，不會超出寬度 */}
+      <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 mt-3">
+        {data.map((entry, idx) => (
+          <div key={entry.name} className="flex items-center gap-1.5 min-w-0">
+            <span
+              className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+              style={{ backgroundColor: colors[idx % colors.length] }}
+            />
+            <span className="text-xs text-[var(--color-text-muted)] truncate">{entry.name}</span>
+            <span className="text-xs text-[var(--color-text-muted)] ml-auto flex-shrink-0 opacity-70">
+              {mode === 'count' ? entry.value : `${Math.round(entry.value / 1000)}k`}
+            </span>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
@@ -155,7 +165,7 @@ function getHealthColor(pct: number): { bar: string; status: string } {
 }
 
 function HealthSection({ items }: { items: Item[] }) {
-  const active = items.filter((i) => i.disposal_status !== 'disposed' && i.price_type !== 'present')
+  const active = items.filter((i) => i.disposal_status !== 'disposed' && i.price_type !== 'present' && !i.ignore_health)
   const total = active.length
   if (total === 0) return null
 
@@ -228,7 +238,8 @@ const RANGE_OPTIONS: { value: TrendRange; label: string }[] = [
 export default function StatsPage() {
   const { items, loading } = useItems()
   const { theme } = useTheme()
-  const stats = useStats(items)
+  const { getCategoryLabel } = useCategories()
+  const stats = useStats(items, getCategoryLabel)
   const [trendRange, setTrendRange] = useState<TrendRange>('1y')
   const trendData = filterTrend(stats.trendLine, trendRange)
   const hasAnySpend = items.some((i) => i.price)

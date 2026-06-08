@@ -1,13 +1,14 @@
 import { useState, useMemo, useCallback, useEffect } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { CalendarClock, Search, X, RotateCcw, Trash2, Eye, EyeOff, Sparkle, Palette, Milk } from 'lucide-react'
-import { getExpiryItems, updateDisposalStatus, deleteItem } from '@/lib/supabase/items'
+import { getExpiryItems, updateDisposalStatus, deleteItem, updateDisposalWithReason, updateDisposalReason } from '@/lib/supabase/items'
+import { DisposalReasonModal } from '@/components/ui/DisposalReasonModal'
 import { getExpiryLevel, expiryColors, type ExpiryLevel } from '@/utils/expiry'
 import { ItemCardSkeleton } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { useToast } from '@/components/ui/Toast'
 import { useCategories } from '@/contexts/CategoriesContext'
-import type { Item, DisposalStatus } from '@/types/database'
+import type { Item, DisposalStatus, DisposalReason } from '@/types/database'
 import { differenceInDays, parseISO, format } from 'date-fns'
 
 type Tab = 'all' | 'kept' | 'watching' | 'disposed'
@@ -59,6 +60,7 @@ export default function ExpiryLogPage() {
   const [tab, setTab] = useState<Tab>(initialTab ?? 'kept')
   const [search, setSearch] = useState('')
   const [updating, setUpdating] = useState<number | null>(null)
+  const [disposalModalItem, setDisposalModalItem] = useState<Item | null>(null)
 
   const initialFilter = searchParams.get('filter') as LevelFilter | null
   const [levelFilters, setLevelFilters] = useState<Set<LevelFilter>>(
@@ -97,6 +99,34 @@ export default function ExpiryLogPage() {
       showToast(msg)
     }
     setUpdating(null)
+  }
+
+  async function handleDispose(reason: DisposalReason) {
+    if (!disposalModalItem) return
+    const target = disposalModalItem
+    setUpdating(target.id)
+    const { error } = await updateDisposalWithReason(target.id, reason)
+    if (error) { showToast('更新失敗', 'error') }
+    else {
+      setItems(prev => prev.map(i => i.id === target.id ? { ...i, disposal_status: 'disposed', disposal_reason: reason } : i))
+      showToast(reason === 'finished' ? '已記錄為用完 ✅' : '已記錄為提早丟棄')
+    }
+    setUpdating(null)
+    setDisposalModalItem(null)
+  }
+
+  async function handleReasonChange(reason: DisposalReason) {
+    if (!disposalModalItem) return
+    const target = disposalModalItem
+    setUpdating(target.id)
+    const { error } = await updateDisposalReason(target.id, reason)
+    if (error) { showToast('更新失敗', 'error') }
+    else {
+      setItems(prev => prev.map(i => i.id === target.id ? { ...i, disposal_reason: reason } : i))
+      showToast('丟棄原因已更新')
+    }
+    setUpdating(null)
+    setDisposalModalItem(null)
   }
 
   async function handleDelete(item: Item) {
@@ -329,14 +359,22 @@ export default function ExpiryLogPage() {
                   <div className="w-px bg-[var(--color-border)]" />
 
                   {isDisposed ? (
-                    /* 已丟棄：恢復 + 刪除 */
+                    /* 已丟棄：原因 + 恢復 + 刪除 */
                     <>
+                      <button
+                        onClick={() => setDisposalModalItem(item)}
+                        disabled={isUpdating}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-[var(--color-text-muted)] hover:bg-[var(--color-bg-muted)] transition-colors min-h-0 disabled:opacity-50"
+                      >
+                        <span>{item.disposal_reason === 'finished' ? '已用完' : item.disposal_reason === 'discarded' ? '未用完丟棄' : '編輯原因'}</span>
+                      </button>
+                      <div className="w-px bg-[var(--color-border)]" />
                       <button
                         onClick={() => setStatus(item, 'kept')}
                         disabled={isUpdating}
                         className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium text-[var(--color-primary)] hover:bg-[var(--color-primary-light)] transition-colors min-h-0 disabled:opacity-50"
                       >
-                        {isUpdating ? <span className="text-[var(--color-text-muted)]">更新中…</span> : <><RotateCcw size={13} strokeWidth={2} /><span>恢復待處理</span></>}
+                        {isUpdating ? <span className="text-[var(--color-text-muted)]">更新中…</span> : <><RotateCcw size={13} strokeWidth={2} /><span>恢復</span></>}
                       </button>
                       <div className="w-px bg-[var(--color-border)]" />
                       <button
@@ -345,13 +383,12 @@ export default function ExpiryLogPage() {
                         className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-[var(--color-danger)] hover:bg-[var(--color-primary-light)] transition-colors min-h-0 disabled:opacity-50"
                       >
                         <Trash2 size={13} strokeWidth={1.5} />
-                        <span>刪除紀錄</span>
+                        <span>刪除</span>
                       </button>
                     </>
                   ) : (
                     /* 待處理 / 觀察中：顯示兩顆按鈕 */
                     <>
-                      {/* 標記觀察中 */}
                       <button
                         onClick={() => setStatus(item, isWatching ? 'kept' : 'watching')}
                         disabled={isUpdating}
@@ -372,9 +409,8 @@ export default function ExpiryLogPage() {
 
                       <div className="w-px bg-[var(--color-border)]" />
 
-                      {/* 標記已丟棄 */}
                       <button
-                        onClick={() => setStatus(item, 'disposed')}
+                        onClick={() => setDisposalModalItem(item)}
                         disabled={isUpdating}
                         className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium text-[var(--color-primary)] hover:bg-[var(--color-primary-light)] transition-colors min-h-0 disabled:opacity-50"
                       >
@@ -394,6 +430,16 @@ export default function ExpiryLogPage() {
       )}
 
       <div className="h-8" />
+
+      {/* 丟棄原因 Modal */}
+      {disposalModalItem && (
+        <DisposalReasonModal
+          current={disposalModalItem.disposal_reason}
+          onSelect={disposalModalItem.disposal_status === 'disposed' ? handleReasonChange : handleDispose}
+          onCancel={() => setDisposalModalItem(null)}
+          loading={updating === disposalModalItem.id}
+        />
+      )}
     </div>
   )
 }

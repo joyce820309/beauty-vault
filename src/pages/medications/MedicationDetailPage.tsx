@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { AutoTextarea, NoteContent } from '@/components/ui/AutoTextarea'
 import { useNavigate, useParams, Link } from 'react-router-dom'
 import { ChevronLeft, Plus, Trash2, Camera, X, Pencil } from 'lucide-react'
+import { DatePicker } from '@/components/ui/DatePicker'
+import { Controller } from 'react-hook-form'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -23,6 +25,8 @@ import { format, parseISO } from 'date-fns'
 const itemSchema = z.object({
   name: z.string().min(1, '請輸入藥品名稱'),
   ingredients: z.string().optional(),
+  mfg_date: z.string().optional(),
+  exp_date: z.string().optional(),
   note: z.string().optional(),
 })
 type ItemFormData = z.infer<typeof itemSchema>
@@ -50,11 +54,13 @@ function MedicationItemForm({
       .map(url => ({ url: url! }))
   })
 
-  const { register, handleSubmit, formState: { errors } } = useForm<ItemFormData>({
+  const { register, handleSubmit, control, formState: { errors } } = useForm<ItemFormData>({
     resolver: zodResolver(itemSchema),
     defaultValues: {
       name: editing?.name ?? '',
       ingredients: editing?.ingredients ?? '',
+      mfg_date: editing?.mfg_date ?? '',
+      exp_date: editing?.exp_date ?? '',
       note: editing?.note ?? '',
     },
   })
@@ -82,6 +88,8 @@ function MedicationItemForm({
     const payload = {
       name: data.name,
       ingredients: data.ingredients || null,
+      mfg_date: data.mfg_date || null,
+      exp_date: data.exp_date || null,
       note: data.note || null,
       image_urls: uploadedUrls,
       image_front_url: null as string | null,
@@ -153,6 +161,16 @@ function MedicationItemForm({
             }} />
           </label>
         </div>
+      </div>
+
+      {/* 製造/有效期限 */}
+      <div className="grid grid-cols-2 gap-3">
+        <Controller name="mfg_date" control={control} render={({ field }) => (
+          <DatePicker label="製造日期" value={field.value ?? ''} onChange={field.onChange} />
+        )} />
+        <Controller name="exp_date" control={control} render={({ field }) => (
+          <DatePicker label="有效期限" value={field.value ?? ''} onChange={field.onChange} />
+        )} />
       </div>
 
       {/* 成分 */}
@@ -228,6 +246,24 @@ function MedicationItemCard({
                 <img src={url} alt="" className="w-full h-full object-cover" />
               </button>
             ))}
+          </div>
+        )}
+
+        {/* 日期 */}
+        {(item.mfg_date || item.exp_date) && (
+          <div className="flex gap-4 mb-2">
+            {item.mfg_date && (
+              <div>
+                <p className="text-xs text-[var(--color-text-muted)]">製造日期</p>
+                <p className="text-sm text-[var(--color-text)]">{format(new Date(item.mfg_date), 'yyyy-MM-dd')}</p>
+              </div>
+            )}
+            {item.exp_date && (
+              <div>
+                <p className="text-xs text-[var(--color-text-muted)]">有效期限</p>
+                <p className="text-sm text-[var(--color-text)]">{format(new Date(item.exp_date), 'yyyy-MM-dd')}</p>
+              </div>
+            )}
           </div>
         )}
 

@@ -4,6 +4,7 @@ export type ItemType = 'makeup' | 'skincare'
 export type SensitiveSkinStatus = 'all_ok' | 'avoid_postop' | 'sensitive_avoid' | 'ng' | 'untested' | 'ok'
 export type SeasonalColor = 'spring' | 'summer' | 'autumn' | 'winter'
 export type DisposalStatus = 'kept' | 'disposed' | 'watching'
+export type DisposalReason = 'finished' | 'discarded'
 export type PriceType = 'normal' | 'split' | 'gift' | 'present'
 export type ToolStatus = 'active' | 'stored' | 'retired'
 
@@ -52,6 +53,7 @@ export interface Item {
   review: string | null
   sensitive_skin_ok: SensitiveSkinStatus | null
   disposal_status: DisposalStatus | null
+  disposal_reason: DisposalReason | null
   price_type: PriceType | null
   original_price: number | null
   currency: string | null
@@ -61,6 +63,7 @@ export interface Item {
   is_favorite: boolean | null
   volume_ml: number | null
   channel: string | null
+  ignore_health: boolean
   created_at: string
   updated_at: string
 }
@@ -129,6 +132,8 @@ export interface MedicationItem {
   medication_record_id: number
   name: string
   ingredients: string | null
+  mfg_date: string | null
+  exp_date: string | null
   image_front_url: string | null
   image_back_url: string | null
   image_urls: string[] | null

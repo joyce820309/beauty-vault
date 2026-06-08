@@ -1,15 +1,9 @@
 import { useMemo } from 'react'
 import { subMonths, parseISO, startOfMonth, format } from 'date-fns'
 import type { Item } from '@/types/database'
-import { MAKEUP_CATEGORIES, SKINCARE_CATEGORIES } from '@/utils/categories'
 import { getExpiryLevel } from '@/utils/expiry'
 
-const allCategories = [...MAKEUP_CATEGORIES, ...SKINCARE_CATEGORIES]
-function getCategoryLabel(v: string | null) {
-  return allCategories.find((c) => c.value === v)?.label ?? v ?? '其他'
-}
-
-export function useStats(items: Item[]) {
+export function useStats(items: Item[], getCategoryLabel: (v: string | null) => string = (v) => v ?? '其他') {
   return useMemo(() => {
     const now = new Date()
 
