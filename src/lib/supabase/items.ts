@@ -39,7 +39,7 @@ export async function getDataHealthCounts(): Promise<{ noCategory: number; noExp
   const base = () => supabase.from('items').select('*', { count: 'exact', head: true })
     .neq('disposal_status', 'disposed')
     .or('price_type.is.null,price_type.neq.present')
-    .neq('ignore_health', true)
+    .or('ignore_health.is.null,ignore_health.eq.false')
   const [cat, exp, pur, chan] = await Promise.all([
     base().is('category', null),
     base().is('exp_date', null),
