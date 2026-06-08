@@ -400,6 +400,7 @@ export default function WishlistPage() {
       review:           null,
       sensitive_skin_ok: null,
       disposal_status:  'kept',
+      disposal_reason:  null,
       currency:         null,
       fragrance:        null,
       is_dud:           false,
@@ -407,6 +408,7 @@ export default function WishlistPage() {
       is_favorite:      false,
       volume_ml:        null,
       channel:          null,
+      ignore_health:    false,
     })
 
     if (error || !newItem) {
