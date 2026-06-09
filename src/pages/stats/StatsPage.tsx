@@ -176,7 +176,7 @@ function HealthSection({ items }: { items: Item[] }) {
   })
 
   const overallPct = Math.round(rows.reduce((s, r) => s + r.pct, 0) / rows.length)
-  const { bar: scoreColor, status: scoreStatus } = getHealthColor(overallPct)
+  const { status: scoreStatus } = getHealthColor(overallPct)
 
   return (
     <div className="bg-[var(--color-bg-muted)] rounded-2xl p-4">
