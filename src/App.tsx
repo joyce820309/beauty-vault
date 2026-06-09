@@ -11,6 +11,7 @@ import MyPage from "@/pages/mypage/MyPage";
 import SkinTrackingPage from "@/pages/mypage/SkinTrackingPage";
 import AestheticPage from "@/pages/mypage/AestheticPage";
 import AestheticFormPage from "@/pages/mypage/AestheticFormPage";
+import PurchaseFormPage from "@/pages/mypage/PurchaseFormPage";
 import AestheticDetailPage from "@/pages/mypage/AestheticDetailPage";
 import ProfilePage from "@/pages/mypage/ProfilePage";
 import WishlistPage from "@/pages/wishlist/WishlistPage";
@@ -42,12 +43,10 @@ export default function App() {
             <Route path="my" element={<MyPage />} />
             <Route path="my/skin" element={<SkinTrackingPage />} />
             <Route path="my/aesthetic" element={<AestheticPage />} />
-            <Route path="my/aesthetic/new" element={<AestheticFormPage />} />
+            <Route path="my/aesthetic/new" element={<PurchaseFormPage />} />
             <Route path="my/aesthetic/:id" element={<AestheticDetailPage />} />
-            <Route
-              path="my/aesthetic/:id/edit"
-              element={<AestheticFormPage />}
-            />
+            <Route path="my/aesthetic/:id/edit" element={<AestheticFormPage />} />
+            <Route path="my/aesthetic/purchase/:purchaseId/edit" element={<PurchaseFormPage />} />
             <Route path="my/profile" element={<ProfilePage />} />
             <Route path="my/wishlist" element={<WishlistPage />} />
             <Route path="my/wishlist/:id" element={<WishlistDetailPage />} />

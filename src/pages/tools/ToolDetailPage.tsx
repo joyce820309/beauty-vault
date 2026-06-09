@@ -194,6 +194,8 @@ export default function ToolDetailPage() {
 
       {/* 基本資訊 */}
       <div className="bg-[var(--color-bg-muted)] rounded-2xl px-4 mb-4">
+        {tool.mfg_date && <Row label="製造日期" value={fmt(tool.mfg_date)} />}
+        {tool.exp_date && <Row label="有效期限" value={fmt(tool.exp_date)} />}
         <Row label="購入日期" value={fmt(tool.purchase_date)} />
         <Row label="購入金額" value={tool.price != null ? `NT$ ${tool.price.toLocaleString()}` : null} />
         {tool.clean_cycle_days && <Row label="清潔週期" value={`每 ${tool.clean_cycle_days} 天`} />}

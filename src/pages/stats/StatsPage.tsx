@@ -156,12 +156,12 @@ const HEALTH_CHECKS = [
 
 // 低飽和色階，對應專案玫瑰 × 矢車菊藍色系
 function getHealthColor(pct: number): { bar: string; status: string } {
-  if (pct === 100) return { bar: '#C4768A', status: '完美' }        // primary rose
-  if (pct >= 81)   return { bar: '#8FA3C8', status: '幾乎滿分' }    // 淺藍 = project accent
-  if (pct >= 61)   return { bar: '#90B4A0', status: '快完成了' }    // 淺綠（鼠尾草）
-  if (pct >= 41)   return { bar: '#C8C080', status: '進度不錯' }    // 淺黃（暖沙）
-  if (pct >= 21)   return { bar: '#D4AC84', status: '持續努力' }    // 淺橘（蜜桃）
-  return                   { bar: '#D4909C', status: '需要加油' }    // 淺紅（霧玫瑰）
+  if (pct === 100) return { bar: '#4CAF82', status: '完美' }    // 飽和綠
+  if (pct >= 81)   return { bar: '#7BC8A4', status: '幾乎滿分' } // 淺綠
+  if (pct >= 61)   return { bar: '#C8C060', status: '快完成了' } // 黃
+  if (pct >= 41)   return { bar: '#D4A050', status: '進度不錯' } // 橘黃
+  if (pct >= 21)   return { bar: '#D47840', status: '持續努力' } // 橘
+  return                   { bar: '#C85050', status: '需要加油' } // 紅
 }
 
 function HealthSection({ items }: { items: Item[] }) {

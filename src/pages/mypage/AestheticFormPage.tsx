@@ -1,26 +1,14 @@
 import { useEffect, useState, forwardRef } from 'react'
-import { AutoTextarea } from '@/components/ui/AutoTextarea'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ChevronLeft } from 'lucide-react'
-import { useForm, Controller } from 'react-hook-form'
+import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import {
-  createAestheticRecord,
-  updateAestheticRecord,
-} from '@/hooks/useAestheticRecords'
-import { getAestheticRecordById } from '@/lib/supabase/aestheticRecords'
-import { DatePicker } from '@/components/ui/DatePicker'
+import { getTreatmentById, updateTreatment } from '@/lib/supabase/aestheticRecords'
+import { useToast } from '@/components/ui/Toast'
 
 const schema = z.object({
-  treatment_name: z.string().min(1, '請輸入施作項目'),
-  treatment_date: z.string().min(1, '請選擇日期'),
-  description: z.string().optional(),
-  total_price: z.coerce.number().int().nonnegative().optional().or(z.literal('')),
-  total_sessions: z.coerce
-    .number({ invalid_type_error: '請輸入數字' })
-    .int()
-    .min(1, '至少 1 堂'),
+  name: z.string().min(1, '請輸入療程名稱'),
   note: z.string().optional(),
 })
 
@@ -31,120 +19,64 @@ function Field({ label, error, children }: { label: string; error?: string; chil
     <div>
       <label className="block text-sm font-medium text-[var(--color-text)] mb-1">{label}</label>
       {children}
-      {error && (
-        <p className="text-xs font-medium mt-1.5" style={{ color: 'var(--color-primary-dark)' }}>
-          {error}
-        </p>
-      )}
+      {error && <p className="text-xs font-medium mt-1.5" style={{ color: 'var(--color-primary-dark)' }}>{error}</p>}
     </div>
   )
 }
 
-const Input = forwardRef<
-  HTMLInputElement,
-  React.InputHTMLAttributes<HTMLInputElement> & { error?: string }
->(({ error, ...rest }, ref) => (
-  <input
-    {...rest}
-    ref={ref}
-    className={`w-full px-3 py-2.5 rounded-xl text-sm text-[var(--color-text)] bg-[var(--color-bg-card)] focus:outline-none transition-all ${
-      error
-        ? 'border-2 border-[var(--color-primary)] shadow-[0_0_0_3px_var(--color-focus-ring)]'
-        : 'border border-[var(--color-border)]'
-    }`}
-  />
-))
+const Input = forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement> & { error?: string }>(
+  ({ error, ...rest }, ref) => (
+    <input {...rest} ref={ref} className={`w-full px-3 py-2.5 rounded-xl text-sm text-[var(--color-text)] bg-[var(--color-bg-card)] focus:outline-none transition-all ${
+      error ? 'border-2 border-[var(--color-primary)]' : 'border border-[var(--color-border)]'
+    }`} />
+  )
+)
 
 export default function AestheticFormPage() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const isEdit = !!id
+  const { showToast } = useToast()
   const [submitting, setSubmitting] = useState(false)
 
-  const { register, handleSubmit, setValue, control, formState: { errors } } = useForm<FormData>({
+  const { register, handleSubmit, setValue, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { total_sessions: 1 },
   })
 
   useEffect(() => {
-    if (!isEdit) return
-    getAestheticRecordById(Number(id)).then(({ data }) => {
+    if (!id) return
+    getTreatmentById(Number(id)).then(({ data }) => {
       if (!data) return
-      setValue('treatment_name', data.treatment_name)
-      setValue('treatment_date', data.treatment_date)
-      setValue('description', data.description ?? '')
-      setValue('total_price', data.total_price ?? '')
-      setValue('total_sessions', data.total_sessions)
+      setValue('name', data.name)
       setValue('note', data.note ?? '')
     })
-  }, [id, isEdit, setValue])
+  }, [id, setValue])
 
   const onSubmit = async (data: FormData) => {
+    if (!id) return
     setSubmitting(true)
-    const payload = {
-      treatment_name: data.treatment_name,
-      treatment_date: data.treatment_date,
-      description: data.description || null,
-      total_price: data.total_price === '' ? null : Number(data.total_price),
-      total_sessions: Number(data.total_sessions),
-      note: data.note || null,
-    }
-    if (isEdit) {
-      await updateAestheticRecord(Number(id), payload)
-      navigate(`/my/aesthetic/${id}`)
-    } else {
-      const { data: created } = await createAestheticRecord(payload)
-      navigate(`/my/aesthetic/${created?.id ?? ''}`)
-    }
+    const { error } = await updateTreatment(Number(id), { name: data.name, note: data.note || null })
+    if (error) { showToast('更新失敗', 'error'); setSubmitting(false); return }
+    showToast('已更新')
+    navigate(`/my/aesthetic/${id}`)
     setSubmitting(false)
   }
 
   return (
     <div>
       <div className="flex items-center gap-2 mb-6">
-        <button onClick={() => navigate(-1)} className="min-h-0 min-w-0 p-1 text-[var(--color-text-muted)]">
+        <button onClick={() => navigate(id ? `/my/aesthetic/${id}` : '/my/aesthetic')} className="min-h-0 min-w-0 p-1 text-[var(--color-text-muted)]">
           <ChevronLeft size={20} strokeWidth={1.5} />
         </button>
-        <h2 className="text-xl font-semibold text-[var(--color-text)]">{isEdit ? '編輯療程' : '新增療程'}</h2>
+        <h2 className="text-xl font-semibold text-[var(--color-text)]">編輯療程</h2>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-        <Field label="施作項目" error={errors.treatment_name?.message}>
-          <Input
-            {...register('treatment_name')}
-            placeholder="例：皮秒雷射、音波拉皮"
-            error={errors.treatment_name?.message}
-          />
-        </Field>
-
-        <Controller name="treatment_date" control={control} render={({ field }) => (
-          <DatePicker
-            label="施作日期"
-            value={field.value ?? ''}
-            onChange={field.onChange}
-            error={errors.treatment_date?.message}
-          />
-        )} />
-
-        <Field label="施作內容">
-          <AutoTextarea {...register('description')} placeholder="記錄施打部位、能量設定等細節…" />
-        </Field>
-
-        <Field label="總金額（NTD）">
-          <Input type="number" {...register('total_price')} placeholder="0" />
-        </Field>
-
-        <Field label="購入堂數" error={errors.total_sessions?.message}>
-          <Input
-            type="number"
-            min={1}
-            {...register('total_sessions')}
-            error={errors.total_sessions?.message}
-          />
+        <Field label="療程名稱" error={errors.name?.message}>
+          <Input {...register('name')} placeholder="例：皮秒雷射" error={errors.name?.message} />
         </Field>
 
         <Field label="備註">
-          <AutoTextarea {...register('note')} placeholder="選填" />
+          <Input {...register('note')} placeholder="選填" />
         </Field>
 
         <button
@@ -152,7 +84,7 @@ export default function AestheticFormPage() {
           disabled={submitting}
           className="w-full py-3 bg-[var(--color-primary)] text-white rounded-xl font-medium text-sm disabled:opacity-60"
         >
-          {submitting ? '儲存中…' : isEdit ? '儲存變更' : '新增療程'}
+          {submitting ? '儲存中…' : '儲存變更'}
         </button>
       </form>
       <div className="h-8" />

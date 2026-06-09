@@ -21,6 +21,8 @@ export interface Tool {
   currency: string | null
   image_url: string | null
   status: ToolStatus
+  mfg_date: string | null
+  exp_date: string | null
   clean_cycle_days: number | null
   last_cleaned_at: string | null
   rating: number | null
@@ -151,5 +153,40 @@ export interface AestheticSessionLog {
   session_date: string
   note: string | null
   created_at: string
+}
+
+export type PurchaseType = 'trial' | 'single' | 'package'
+
+export interface Treatment {
+  id: number
+  name: string
+  note: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface TreatmentPurchase {
+  id: number
+  treatment_id: number
+  purchase_type: PurchaseType
+  paid_sessions: number
+  bonus_sessions: number
+  total_price: number | null
+  purchase_date: string
+  note: string | null
+  created_at: string
+}
+
+export interface TreatmentSession {
+  id: number
+  treatment_id: number
+  session_date: string
+  note: string | null
+  created_at: string
+}
+
+export type TreatmentWithData = Treatment & {
+  treatment_purchases: TreatmentPurchase[]
+  treatment_sessions: TreatmentSession[]
 }
 

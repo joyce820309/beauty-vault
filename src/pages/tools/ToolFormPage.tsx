@@ -28,6 +28,8 @@ const schema = z.object({
   name_en: z.string().optional(),
   name_zh: z.string().optional(),
   category: z.string().optional(),
+  mfg_date: z.string().optional(),
+  exp_date: z.string().optional(),
   purchase_date: z.string().optional(),
   price: z.coerce.number().int().nonnegative().optional().or(z.literal('')),
   currency: z.string().optional(),
@@ -130,6 +132,8 @@ export default function ToolFormPage() {
       name_en: data.name_en || null,
       name_zh: data.name_zh || null,
       category: data.category || null,
+      mfg_date: data.mfg_date || null,
+      exp_date: data.exp_date || null,
       purchase_date: data.purchase_date || null,
       price: data.price === '' ? null : Number(data.price) || null,
       price_type: 'normal' as const,
@@ -153,7 +157,7 @@ export default function ToolFormPage() {
         const { data: created, error } = await createTool(payload)
         if (error) throw error
         showToast('已新增')
-        navigate(`/tools/${created?.id ?? ''}`)
+        navigate(`/tools/${created?.id ?? ''}`, { replace: true })
       }
     } catch {
       showToast('儲存失敗', 'error')
@@ -167,7 +171,7 @@ export default function ToolFormPage() {
   return (
     <div>
       <div className="flex items-center gap-3 mb-6">
-        <button onClick={() => navigate(-1)} className="text-[var(--color-text-muted)] min-h-0 min-w-0 p-1">
+        <button onClick={() => navigate('/tools')} className="text-[var(--color-text-muted)] min-h-0 min-w-0 p-1">
           <ChevronLeft size={20} strokeWidth={1.5} />
         </button>
         <h2 className="text-xl font-semibold text-[var(--color-text)]">{isEdit ? '編輯工具' : '新增工具'}</h2>
@@ -242,6 +246,58 @@ export default function ToolFormPage() {
           <Field label="購入金額（NTD）">
             <Input type="number" {...register('price')} placeholder="0" />
           </Field>
+        </div>
+
+        {/* 製造日期 + 有效期限 */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
+          <Controller name="mfg_date" control={control}
+            render={({ field }) => {
+              const mfg = field.value
+              function applyToExp(years: number) {
+                const base = mfg || new Date().toISOString().slice(0, 10)
+                const d = new Date(base)
+                d.setFullYear(d.getFullYear() + years)
+                setValue('exp_date', d.toISOString().slice(0, 10))
+              }
+              return (
+                <div>
+                  <DatePicker label="製造日期" value={mfg ?? ''} onChange={field.onChange} />
+                  <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                    <span className="text-xs text-[var(--color-text-muted)]">推算到期日：</span>
+                    {[3, 5].map(y => (
+                      <button key={y} type="button" onClick={() => applyToExp(y)}
+                        className="px-2.5 py-0.5 rounded-full text-xs font-medium border border-[var(--color-primary)] text-[var(--color-primary)] hover:bg-[var(--color-primary-light)] transition-colors min-h-0"
+                      >+{y} 年</button>
+                    ))}
+                  </div>
+                </div>
+              )
+            }}
+          />
+          <Controller name="exp_date" control={control}
+            render={({ field }) => {
+              const exp = field.value
+              function applyToMfg(years: number) {
+                const base = exp || new Date().toISOString().slice(0, 10)
+                const d = new Date(base)
+                d.setFullYear(d.getFullYear() - years)
+                setValue('mfg_date', d.toISOString().slice(0, 10))
+              }
+              return (
+                <div>
+                  <DatePicker label="有效期限" value={exp ?? ''} onChange={field.onChange} />
+                  <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                    <span className="text-xs text-[var(--color-text-muted)]">反推製造日：</span>
+                    {[3, 5].map(y => (
+                      <button key={y} type="button" onClick={() => applyToMfg(y)}
+                        className="px-2.5 py-0.5 rounded-full text-xs font-medium border border-[var(--color-accent)] text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10 transition-colors min-h-0"
+                      >-{y} 年</button>
+                    ))}
+                  </div>
+                </div>
+              )
+            }}
+          />
         </div>
 
         {/* 評分 */}
