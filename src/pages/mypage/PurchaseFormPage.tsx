@@ -18,8 +18,8 @@ import type { PurchaseType } from '@/types/database'
 const schema = z.object({
   treatment_name: z.string().min(1, '請輸入或選擇療程名稱'),
   purchase_type: z.enum(['trial', 'single', 'package']),
-  paid_sessions: z.coerce.number().int().min(1, '至少 1 堂').or(z.literal(1)),
-  bonus_sessions: z.coerce.number().int().min(0).or(z.literal(0)).default(0),
+  paid_sessions: z.coerce.number().int().min(1, '至少 1 堂'),
+  bonus_sessions: z.coerce.number().int().min(0),
   total_price: z.coerce.number().int().nonnegative().optional().or(z.literal('')),
   purchase_date: z.string().min(1, '請選擇購入日期'),
   note: z.string().optional(),
@@ -67,10 +67,13 @@ export default function PurchaseFormPage() {
   const { register, handleSubmit, control, watch, setValue, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
-      purchase_type: 'package',
+      treatment_name: '',
+      purchase_type: 'package' as PurchaseType,
       paid_sessions: 1,
       bonus_sessions: 0,
+      total_price: '' as const,
       purchase_date: new Date().toISOString().slice(0, 10),
+      note: '',
     },
   })
 
