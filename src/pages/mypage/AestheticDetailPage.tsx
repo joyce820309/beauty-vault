@@ -8,7 +8,7 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { DatePicker } from '@/components/ui/DatePicker'
 import { useToast } from '@/components/ui/Toast'
 import { format, parseISO } from 'date-fns'
-import type { TreatmentPurchase, PurchaseType } from '@/types/database'
+import type { PurchaseType } from '@/types/database'
 
 const PURCHASE_TYPE_LABELS: Record<PurchaseType, string> = {
   trial: '體驗課',

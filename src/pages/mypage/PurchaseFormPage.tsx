@@ -9,7 +9,6 @@ import {
   createTreatment,
   createPurchase,
   updatePurchase,
-  getTreatmentById,
 } from '@/lib/supabase/aestheticRecords'
 import { supabase } from '@/lib/supabase/client'
 import { DatePicker } from '@/components/ui/DatePicker'
@@ -19,8 +18,8 @@ import type { PurchaseType } from '@/types/database'
 const schema = z.object({
   treatment_name: z.string().min(1, '請輸入或選擇療程名稱'),
   purchase_type: z.enum(['trial', 'single', 'package']),
-  paid_sessions: z.coerce.number().int().min(1, '至少 1 堂'),
-  bonus_sessions: z.coerce.number().int().min(0).default(0),
+  paid_sessions: z.coerce.number().int().min(1, '至少 1 堂').or(z.literal(1)),
+  bonus_sessions: z.coerce.number().int().min(0).or(z.literal(0)).default(0),
   total_price: z.coerce.number().int().nonnegative().optional().or(z.literal('')),
   purchase_date: z.string().min(1, '請選擇購入日期'),
   note: z.string().optional(),
@@ -145,6 +144,8 @@ export default function PurchaseFormPage() {
         treatmentId = created.id
       }
     }
+
+    if (!treatmentId) { showToast('找不到療程', 'error'); setSubmitting(false); return }
 
     const payload = {
       treatment_id: treatmentId,
