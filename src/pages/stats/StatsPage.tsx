@@ -156,12 +156,12 @@ const HEALTH_CHECKS = [
 
 // 低飽和色階，對應專案玫瑰 × 矢車菊藍色系
 function getHealthColor(pct: number): { bar: string; status: string } {
-  if (pct === 100) return { bar: '#4CAF82', status: '完美' }    // 飽和綠
-  if (pct >= 81)   return { bar: '#7BC8A4', status: '幾乎滿分' } // 淺綠
-  if (pct >= 61)   return { bar: '#C8C060', status: '快完成了' } // 黃
-  if (pct >= 41)   return { bar: '#D4A050', status: '進度不錯' } // 橘黃
-  if (pct >= 21)   return { bar: '#D47840', status: '持續努力' } // 橘
-  return                   { bar: '#C85050', status: '需要加油' } // 紅
+  if (pct === 100) return { bar: '#88B880', status: '完美' }    // 鼠尾草綠
+  if (pct >= 81)   return { bar: '#70B0A8', status: '幾乎滿分' } // 薄荷青
+  if (pct >= 61)   return { bar: '#C8C070', status: '快完成了' } // 暖黃
+  if (pct >= 41)   return { bar: '#C8906A', status: '進度不錯' } // 橘茶
+  if (pct >= 21)   return { bar: '#C4909C', status: '持續努力' } // 霧玫瑰
+  return                   { bar: '#A87888', status: '需要加油' } // 深霧玫瑰
 }
 
 function HealthSection({ items }: { items: Item[] }) {
@@ -185,7 +185,7 @@ function HealthSection({ items }: { items: Item[] }) {
           <p className="text-sm font-semibold text-[var(--color-text)]">資料完整度</p>
           <span
             className="inline-block text-xs px-2 py-0.5 rounded-full font-medium mt-1.5"
-            style={{ backgroundColor: `${scoreColor}28`, color: scoreColor }}
+            style={{ backgroundColor: 'rgb(152 152 152 / 16%)', color: 'rgb(170 155 161)' }}
           >
             {scoreStatus}
           </span>
