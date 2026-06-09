@@ -212,19 +212,19 @@ export default function ExpiryLogPage() {
       </div>
 
       {/* Tab 列 */}
-      <div className="flex gap-2 mb-2">
+      <div className="flex gap-1.5 mb-2">
         {tabs.map(({ key, label, count }) => (
           <button
             key={key}
             onClick={() => setTab(key)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors min-h-0 ${
+            className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-colors min-h-0 ${
               tab === key
                 ? 'bg-[var(--color-primary)] text-white'
                 : 'bg-[var(--color-bg-muted)] text-[var(--color-text-muted)]'
             }`}
           >
             {label}
-            <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+            <span className={`text-xs px-1 py-0 rounded-full leading-4 ${
               tab === key ? 'bg-white/25' : 'bg-[var(--color-border)]'
             }`}>
               {count}
