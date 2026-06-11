@@ -71,35 +71,36 @@ function DrumColumn({
     }, 80)
   }, [items, selected, onSelect, scrollToIndex])
 
-  const FADE_H = Math.floor(ITEM_H * 0.8)  // 遮罩只覆蓋上下邊緣，不蓋到中間格
-
   return (
     <div className="relative select-none" style={{ width: 44, height: DRUM_H }}>
-      {/* 選中高亮框 */}
+      {/* 選中高亮框：z-0，純背景層 */}
       <div
-        className="absolute inset-x-0 pointer-events-none z-10 rounded-lg"
+        className="absolute inset-x-0 pointer-events-none rounded-lg"
         style={{
-          top: ITEM_H,      // 第二格（中間）
+          top: ITEM_H,
           height: ITEM_H,
+          zIndex: 0,
           background: 'var(--color-primary-light)',
           border: '1px solid color-mix(in srgb, var(--color-primary) 35%, transparent)',
         }}
       />
 
-      {/* 上方淡出（只蓋邊緣） */}
+      {/* 上方淡出遮罩：z-30，蓋在 scroll container（z-20）之上，半透明讓上下格數字隱約可見 */}
       <div
-        className="absolute inset-x-0 top-0 pointer-events-none z-20"
+        className="absolute inset-x-0 top-0 pointer-events-none"
         style={{
-          height: FADE_H,
-          background: 'linear-gradient(to bottom, var(--color-bg-card) 30%, transparent)',
+          height: ITEM_H,
+          zIndex: 30,
+          background: 'linear-gradient(to bottom, color-mix(in srgb, var(--color-bg-card) 90%, transparent) 20%, transparent)',
         }}
       />
-      {/* 下方淡出 */}
+      {/* 下方淡出遮罩 */}
       <div
-        className="absolute inset-x-0 bottom-0 pointer-events-none z-20"
+        className="absolute inset-x-0 bottom-0 pointer-events-none"
         style={{
-          height: FADE_H,
-          background: 'linear-gradient(to top, var(--color-bg-card) 30%, transparent)',
+          height: ITEM_H,
+          zIndex: 30,
+          background: 'linear-gradient(to top, color-mix(in srgb, var(--color-bg-card) 90%, transparent) 20%, transparent)',
         }}
       />
 
@@ -111,12 +112,12 @@ function DrumColumn({
           height: DRUM_H,
           overflowY: 'scroll',
           scrollbarWidth: 'none',
-          // scroll-padding 讓 snap 對齊中間格（第二格起始位置）
           scrollPaddingTop: ITEM_H,
           scrollSnapType: 'y mandatory',
-          // 上下 padding 讓第一格和最後一格也能滾到中間
           paddingTop: ITEM_H,
           paddingBottom: ITEM_H,
+          position: 'relative',
+          zIndex: 20,  // 文字在高亮框（z-0）上面，在淡出遮罩（z-30）下面
         }}
       >
         {items.map((item) => (
