@@ -53,6 +53,9 @@ export function ItemCard({
   const shadeSecondary = item.shade_en && item.shade_zh ? item.shade_zh : null
 
   // ── touch handlers ──────────────────────────────────────
+  // 需要累積超過此距離才判定方向，避免手指抖動誤判
+  const DIRECTION_LOCK_THRESHOLD = 8
+
   function onTouchStart(e: React.TouchEvent) {
     touchStartX.current = e.touches[0].clientX
     touchStartY.current = e.touches[0].clientY
@@ -65,13 +68,18 @@ export function ItemCard({
     const dx = e.touches[0].clientX - touchStartX.current
     const dy = e.touches[0].clientY - touchStartY.current
 
-    // 第一次 move 決定是水平還是垂直
+    // 方向尚未鎖定：等累積足夠位移再判定，避免微小抖動誤判
     if (isScrolling.current === null) {
-      isScrolling.current = Math.abs(dy) > Math.abs(dx)
+      const dist = Math.sqrt(dx * dx + dy * dy)
+      if (dist < DIRECTION_LOCK_THRESHOLD) return  // 還不夠，繼續等
+      // 水平分量明顯大於垂直才視為水平滑動（比例 1.5:1）
+      isScrolling.current = Math.abs(dy) > Math.abs(dx) * 1.5
     }
+
+    // 已確認垂直：完全放行，讓頁面捲動
     if (isScrolling.current) return
 
-    // 水平滑動 — 阻止頁面捲動
+    // 已確認水平：鎖定，阻止頁面捲動
     e.preventDefault()
 
     const base = swiped ? -ACTION_WIDTH : 0
@@ -89,11 +97,9 @@ export function ItemCard({
 
     const mid = -ACTION_WIDTH / 2
     if (offsetX < mid) {
-      // snap open
       setOffsetX(-ACTION_WIDTH)
       setSwiped(true)
     } else {
-      // snap close
       setOffsetX(0)
       setSwiped(false)
     }
@@ -131,14 +137,16 @@ export function ItemCard({
       >
         <button
           onClick={() => { closeSwipe(); navigate(`/items/${item.id}/edit`) }}
-          className={`flex-1 flex flex-col items-center justify-center gap-1 bg-[var(--color-primary)] text-white transition-opacity ${showActions ? 'opacity-100' : 'opacity-0'}`}
+          className={`flex-1 flex flex-col items-center justify-center gap-1 text-white transition-opacity ${showActions ? 'opacity-100' : 'opacity-0'}`}
+          style={{ backgroundColor: '#7A93B8' }}
         >
           <Pencil size={18} strokeWidth={1.5} />
           <span className="text-[11px] font-medium">編輯</span>
         </button>
         <button
           onClick={() => { closeSwipe(); setConfirm('delete') }}
-          className={`flex-1 flex flex-col items-center justify-center gap-1 bg-red-400 text-white rounded-r-xl transition-opacity ${showActions ? 'opacity-100' : 'opacity-0'}`}
+          className={`flex-1 flex flex-col items-center justify-center gap-1 text-white rounded-r-xl transition-opacity ${showActions ? 'opacity-100' : 'opacity-0'}`}
+          style={{ backgroundColor: '#A85870' }}
         >
           <Trash2 size={18} strokeWidth={1.5} />
           <span className="text-[11px] font-medium">刪除</span>
@@ -147,7 +155,9 @@ export function ItemCard({
 
       {/* card body — slides left on swipe */}
       <div
-        className={`relative border rounded-xl bg-[var(--color-bg-card)] transition-colors ${
+        className={`relative border bg-[var(--color-bg-card)] transition-colors ${
+          offsetX < 0 ? 'rounded-l-xl' : 'rounded-xl'
+        } ${
           isDisposed
             ? 'border-[var(--color-border)] opacity-50'
             : isWatching
