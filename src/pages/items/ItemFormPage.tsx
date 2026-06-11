@@ -12,6 +12,7 @@ import { createItem, getItemById, updateItem } from "@/lib/supabase/items";
 import { supabase } from "@/lib/supabase/client";
 import { SENSITIVE_SKIN_OPTIONS } from "@/utils/categories";
 import { Camera } from "lucide-react";
+import Toggle from "@/components/ui/Toggle";
 import { useToast } from "@/components/ui/Toast";
 import { addCustomOption } from "@/lib/customOptions";
 import { useChannels } from "@/hooks/useChannels";
@@ -808,21 +809,15 @@ export default function ItemFormPage() {
               <p className="text-sm font-medium text-[var(--color-text)]">最愛</p>
               <p className="text-xs text-[var(--color-text-muted)]">喜歡，下次還想買</p>
             </div>
-            <button
-              type="button"
-              onClick={() => {
+            <Toggle
+              checked={!!watch("is_favorite")}
+              onChange={() => {
                 const next = !watch("is_favorite")
                 setValue("is_favorite", next)
                 if (next) setValue("is_dud", false)
               }}
-              className={`relative w-11 h-6 rounded-full transition-colors min-h-0 min-w-0 overflow-hidden ${
-                watch("is_favorite") ? "bg-[var(--color-primary)]" : "bg-[var(--color-border)]"
-              }`}
-            >
-              <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all duration-200 ${
-                watch("is_favorite") ? "left-[22px]" : "left-0.5"
-              }`} />
-            </button>
+              color="primary"
+            />
           </div>
 
           {/* 雷品 */}
@@ -831,21 +826,15 @@ export default function ItemFormPage() {
               <p className="text-sm font-medium text-[var(--color-text)]">雷品</p>
               <p className="text-xs text-[var(--color-text-muted)]">踩雷，不推薦</p>
             </div>
-            <button
-              type="button"
-              onClick={() => {
+            <Toggle
+              checked={!!watch("is_dud")}
+              onChange={() => {
                 const next = !watch("is_dud")
                 setValue("is_dud", next)
                 if (next) setValue("is_favorite", false)
               }}
-              className={`relative w-11 h-6 rounded-full transition-colors min-h-0 min-w-0 overflow-hidden ${
-                watch("is_dud") ? "bg-[var(--color-accent)]" : "bg-[var(--color-border)]"
-              }`}
-            >
-              <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all duration-200 ${
-                watch("is_dud") ? "left-[22px]" : "left-0.5"
-              }`} />
-            </button>
+              color="accent"
+            />
           </div>
 
           {/* 小樣 */}
@@ -854,17 +843,11 @@ export default function ItemFormPage() {
               <p className="text-sm font-medium text-[var(--color-text)]">小樣</p>
               <p className="text-xs text-[var(--color-text-muted)]">試用品、隨贈樣品</p>
             </div>
-            <button
-              type="button"
-              onClick={() => setValue("is_sample", !watch("is_sample"))}
-              className={`relative w-11 h-6 rounded-full transition-colors min-h-0 min-w-0 overflow-hidden ${
-                watch("is_sample") ? "bg-[var(--color-accent)]" : "bg-[var(--color-border)]"
-              }`}
-            >
-              <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all duration-200 ${
-                watch("is_sample") ? "left-[22px]" : "left-0.5"
-              }`} />
-            </button>
+            <Toggle
+              checked={!!watch("is_sample")}
+              onChange={() => setValue("is_sample", !watch("is_sample"))}
+              color="accent"
+            />
           </div>
         </div>
 

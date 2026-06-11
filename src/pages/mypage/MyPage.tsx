@@ -11,6 +11,7 @@ import {
   Wrench,
   Activity,
   Download,
+  Bell,
 } from "lucide-react";
 import { useInstallPrompt } from "@/hooks/useInstallPrompt";
 import type { LucideIcon } from "lucide-react";
@@ -23,8 +24,9 @@ const menuItems: { to: string; label: string; Icon: LucideIcon }[] = [
   { to: "/my/aesthetic",    label: "醫美紀錄", Icon: Sparkles },
   { to: "/my/medications",  label: "用藥紀錄", Icon: Pill },
   { to: "/my/categories",   label: "類別管理", Icon: Tag },
-  { to: "/my/channels",     label: "通路管理", Icon: Activity },
-  { to: "/my/profile",      label: "個人檔案", Icon: User },
+  { to: "/my/channels",       label: "通路管理", Icon: Activity },
+  { to: "/my/notifications", label: "推播通知", Icon: Bell },
+  { to: "/my/profile",       label: "個人檔案", Icon: User },
 ];
 
 export default function MyPage() {

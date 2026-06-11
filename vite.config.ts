@@ -40,6 +40,9 @@ export default defineConfig({
       },
     }),
   ],
+  server: {
+    port: 5285,
+  },
   resolve: {
     alias: { '@': '/src' },
   },

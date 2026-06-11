@@ -24,6 +24,7 @@ import MedicationFormPage from "@/pages/medications/MedicationFormPage";
 import ToolListPage from "@/pages/tools/ToolListPage";
 import ToolDetailPage from "@/pages/tools/ToolDetailPage";
 import ToolFormPage from "@/pages/tools/ToolFormPage";
+import NotificationsPage from "@/pages/mypage/NotificationsPage";
 import { CategoriesProvider } from "@/contexts/CategoriesContext";
 
 export default function App() {
@@ -52,6 +53,7 @@ export default function App() {
             <Route path="my/wishlist/:id" element={<WishlistDetailPage />} />
             <Route path="my/categories" element={<CategoriesPage />} />
             <Route path="my/channels" element={<ChannelsPage />} />
+            <Route path="my/notifications" element={<NotificationsPage />} />
             <Route path="my/medications" element={<MedicationListPage />} />
             <Route path="my/medications/new" element={<MedicationFormPage />} />
             <Route path="my/medications/:id" element={<MedicationDetailPage />} />
