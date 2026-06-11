@@ -1,13 +1,14 @@
 {
   "name": "beauty-vault",
   "private": true,
-  "version": "0.0.1",
+  "version": "260611-1",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "bump": "node scripts/bump-version.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
