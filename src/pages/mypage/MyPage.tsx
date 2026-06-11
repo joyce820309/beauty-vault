@@ -34,7 +34,10 @@ export default function MyPage() {
 
   return (
     <div>
-      <h2 className="text-xl font-semibold text-[var(--color-text)] mb-4">我的</h2>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-semibold text-[var(--color-text)]">我的</h2>
+        <span className="text-xs text-[var(--color-text-muted)] opacity-50">v{__APP_VERSION__}</span>
+      </div>
 
       {/* 安裝到桌面 */}
       {prompt && (

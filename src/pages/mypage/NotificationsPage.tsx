@@ -11,10 +11,20 @@ import {
   CalendarClock,
 } from 'lucide-react'
 import Toggle from '@/components/ui/Toggle'
+import { Select } from '@/components/ui/Select'
+import { TimePicker } from '@/components/ui/TimePicker'
 import { useNotifications } from '@/hooks/useNotifications'
 import type { NotificationRule } from '@/hooks/useNotifications'
 import { format } from 'date-fns'
 import { zhTW } from 'date-fns/locale'
+
+const DAYS_OPTIONS = [
+  { value: '0',  label: '立即' },
+  { value: '3',  label: '3 天前' },
+  { value: '7',  label: '7 天前' },
+  { value: '14', label: '14 天前' },
+  { value: '30', label: '30 天前' },
+]
 
 type Tab = 'settings' | 'logs'
 
@@ -41,6 +51,8 @@ export default function NotificationsPage() {
     daysBeforeExpiry: 7,
     notifyAt: '09:00',
   })
+  const [testTitle, setTestTitle] = useState('')
+  const [testBody, setTestBody] = useState('')
 
   async function handleToggleMaster() {
     const ok = await toggleMaster()
@@ -57,7 +69,9 @@ export default function NotificationsPage() {
   }
 
   function handleTestNotification() {
-    sendNotification('BeautyVault 測試通知', '推播通知設定成功！')
+    const title = testTitle.trim() || 'BeautyVault 測試通知'
+    const body  = testBody.trim()  || '推播通知設定成功！'
+    sendNotification(title, body)
   }
 
   const permissionDenied = permission === 'denied'
@@ -126,12 +140,27 @@ export default function NotificationsPage() {
               />
             </div>
             {settings.masterEnabled && (
-              <button
-                onClick={handleTestNotification}
-                className="mt-3 w-full text-xs text-[var(--color-primary)] border border-[var(--color-primary)]/30 rounded-lg py-1.5 hover:bg-[var(--color-primary-light)] transition-colors"
-              >
-                發送測試通知
-              </button>
+              <div className="mt-3 space-y-2 pt-3 border-t border-[var(--color-border)]">
+                <p className="text-xs font-medium text-[var(--color-text-muted)]">測試通知內容</p>
+                <input
+                  value={testTitle}
+                  onChange={e => setTestTitle(e.target.value)}
+                  placeholder="標題（預設：BeautyVault 測試通知）"
+                  className="w-full text-xs rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)] px-2.5 py-1.5 focus:outline-none focus:border-[var(--color-primary)]"
+                />
+                <input
+                  value={testBody}
+                  onChange={e => setTestBody(e.target.value)}
+                  placeholder="內容（預設：推播通知設定成功！）"
+                  className="w-full text-xs rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)] px-2.5 py-1.5 focus:outline-none focus:border-[var(--color-primary)]"
+                />
+                <button
+                  onClick={handleTestNotification}
+                  className="w-full text-xs text-[var(--color-primary)] border border-[var(--color-primary)]/30 rounded-lg py-1.5 hover:bg-[var(--color-primary-light)] transition-colors"
+                >
+                  發送測試通知
+                </button>
+              </div>
             )}
           </div>
 
@@ -151,24 +180,21 @@ export default function NotificationsPage() {
             {settings.expiryReminder && (
               <div className="space-y-2 pt-1 border-t border-[var(--color-border)]">
                 <div className="flex items-center justify-between gap-3">
-                  <label className="text-xs text-[var(--color-text-muted)]">到期前幾天提醒</label>
-                  <select
-                    value={settings.expiryDaysBefore}
-                    onChange={e => updateSettings({ expiryDaysBefore: Number(e.target.value) })}
-                    className="text-sm rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)] px-2 py-1"
-                  >
-                    {[3, 7, 14, 30].map(d => (
-                      <option key={d} value={d}>{d} 天前</option>
-                    ))}
-                  </select>
+                  <label className="text-xs text-[var(--color-text-muted)] shrink-0">到期前幾天提醒</label>
+                  <div className="w-28">
+                    <Select
+                      size="sm"
+                      value={String(settings.expiryDaysBefore)}
+                      onChange={v => updateSettings({ expiryDaysBefore: Number(v) })}
+                      options={DAYS_OPTIONS}
+                    />
+                  </div>
                 </div>
                 <div className="flex items-center justify-between gap-3">
-                  <label className="text-xs text-[var(--color-text-muted)]">通知時間（本機時間）</label>
-                  <input
-                    type="time"
+                  <label className="text-xs text-[var(--color-text-muted)] shrink-0">通知時間（本機時間）</label>
+                  <TimePicker
                     value={settings.expiryNotifyAt}
-                    onChange={e => updateSettings({ expiryNotifyAt: e.target.value })}
-                    className="text-sm rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)] px-2 py-1"
+                    onChange={v => updateSettings({ expiryNotifyAt: v })}
                   />
                 </div>
               </div>
@@ -223,23 +249,20 @@ export default function NotificationsPage() {
                 <div className="flex gap-3">
                   <div className="flex-1 flex items-center gap-2">
                     <label className="text-xs text-[var(--color-text-muted)] whitespace-nowrap">到期前</label>
-                    <select
-                      value={rule.daysBeforeExpiry}
-                      onChange={e => updateCustomRule(rule.id, { daysBeforeExpiry: Number(e.target.value) })}
-                      className="flex-1 text-xs rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)] px-2 py-1"
-                    >
-                      {[3, 7, 14, 30].map(d => (
-                        <option key={d} value={d}>{d} 天</option>
-                      ))}
-                    </select>
+                    <div className="flex-1">
+                      <Select
+                        size="sm"
+                        value={String(rule.daysBeforeExpiry)}
+                        onChange={v => updateCustomRule(rule.id, { daysBeforeExpiry: Number(v) })}
+                        options={DAYS_OPTIONS}
+                      />
+                    </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <label className="text-xs text-[var(--color-text-muted)]">時間</label>
-                    <input
-                      type="time"
+                    <label className="text-xs text-[var(--color-text-muted)] shrink-0">時間</label>
+                    <TimePicker
                       value={rule.notifyAt}
-                      onChange={e => updateCustomRule(rule.id, { notifyAt: e.target.value })}
-                      className="text-xs rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)] px-2 py-1"
+                      onChange={v => updateCustomRule(rule.id, { notifyAt: v })}
                     />
                   </div>
                 </div>
@@ -260,23 +283,20 @@ export default function NotificationsPage() {
                 <div className="flex gap-3">
                   <div className="flex-1 flex items-center gap-2">
                     <label className="text-xs text-[var(--color-text-muted)] whitespace-nowrap">到期前</label>
-                    <select
-                      value={newRule.daysBeforeExpiry}
-                      onChange={e => setNewRule(prev => ({ ...prev, daysBeforeExpiry: Number(e.target.value) }))}
-                      className="flex-1 text-xs rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-card)] text-[var(--color-text)] px-2 py-1"
-                    >
-                      {[3, 7, 14, 30].map(d => (
-                        <option key={d} value={d}>{d} 天</option>
-                      ))}
-                    </select>
+                    <div className="flex-1">
+                      <Select
+                        size="sm"
+                        value={String(newRule.daysBeforeExpiry)}
+                        onChange={v => setNewRule(prev => ({ ...prev, daysBeforeExpiry: Number(v) }))}
+                        options={DAYS_OPTIONS}
+                      />
+                    </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <label className="text-xs text-[var(--color-text-muted)]">時間</label>
-                    <input
-                      type="time"
+                    <label className="text-xs text-[var(--color-text-muted)] shrink-0">時間</label>
+                    <TimePicker
                       value={newRule.notifyAt}
-                      onChange={e => setNewRule(prev => ({ ...prev, notifyAt: e.target.value }))}
-                      className="text-xs rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-card)] text-[var(--color-text)] px-2 py-1"
+                      onChange={v => setNewRule(prev => ({ ...prev, notifyAt: v }))}
                     />
                   </div>
                 </div>

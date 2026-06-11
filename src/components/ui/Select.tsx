@@ -15,6 +15,7 @@ interface SelectProps<T extends string = string> {
   label?: string
   error?: string
   disabled?: boolean
+  size?: 'sm' | 'md'
 }
 
 export function Select<T extends string = string>({
@@ -25,6 +26,7 @@ export function Select<T extends string = string>({
   label,
   error,
   disabled,
+  size = 'md',
 }: SelectProps<T>) {
   const [open, setOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -56,7 +58,8 @@ export function Select<T extends string = string>({
         disabled={disabled}
         onClick={() => !disabled && setOpen((v) => !v)}
         className={[
-          'w-full flex items-center justify-between px-3 py-2.5 rounded-xl border text-sm text-left',
+          'w-full flex items-center justify-between rounded-xl border text-left focus:outline-none',
+          size === 'sm' ? 'px-2.5 py-1 text-xs' : 'px-3 py-2.5 text-sm',
           'bg-[var(--color-bg-card)] transition-all duration-150',
           open
             ? 'border-[var(--color-primary)] shadow-[0_0_0_3px_var(--color-focus-ring)]'
@@ -85,7 +88,7 @@ export function Select<T extends string = string>({
           style={{ animation: 'selectFadeIn 0.12s ease' }}
           role="listbox"
         >
-          <div className="py-1 max-h-56 overflow-y-auto">
+          <div className="py-1 max-h-56 overflow-y-auto" style={{ scrollbarWidth: 'thin', scrollbarColor: 'var(--color-border) transparent' }}>
             {options.map((opt) => (
               <button
                 key={opt.value}
@@ -95,7 +98,8 @@ export function Select<T extends string = string>({
                 disabled={opt.disabled}
                 onMouseDown={() => !opt.disabled && select(opt.value)}
                 className={[
-                  'w-full flex items-center justify-between px-3 py-2.5 text-sm text-left transition-colors min-h-0',
+                  'w-full flex items-center justify-between text-left transition-colors min-h-0',
+                  size === 'sm' ? 'px-2.5 py-1.5 text-xs' : 'px-3 py-2.5 text-sm',
                   opt.value === value
                     ? 'bg-[var(--color-primary-light)] text-[var(--color-primary-dark)] font-medium'
                     : 'text-[var(--color-text)] hover:bg-[var(--color-bg-muted)]',

@@ -86,7 +86,9 @@ const HEALTH_LABELS: Record<string, string> = {
 export default function ItemListPage() {
   const [searchParams] = useSearchParams()
   const healthFilter = searchParams.get('filter')
-  const { items, loading, error } = useItems()
+  const { items: rawItems, loading, error } = useItems()
+  const [deletedIds, setDeletedIds] = useState<Set<number>>(new Set())
+  const items = rawItems.filter(i => !deletedIds.has(i.id))
   const { makeupCategories, skincareCategories, makeupParents, skincareParents, getChildren } = useCategories()
   const [search, setSearch] = useState(() => {
     try { return localStorage.getItem(LS_SEARCH_KEY) ?? '' } catch { return '' }
@@ -545,7 +547,13 @@ export default function ItemListPage() {
         <ItemTable items={filtered} />
       ) : (
         <div className="space-y-3">
-          {filtered.map((item) => <ItemCard key={item.id} item={item} />)}
+          {filtered.map((item) => (
+            <ItemCard
+              key={item.id}
+              item={item}
+              onDelete={(id) => setDeletedIds(prev => new Set(prev).add(id))}
+            />
+          ))}
         </div>
       )}
     </div>

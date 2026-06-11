@@ -1,4 +1,4 @@
-import { Outlet } from 'react-router-dom'
+import { Outlet, useLocation } from 'react-router-dom'
 import BottomNav from './BottomNav'
 import Sidebar from './Sidebar'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
@@ -6,8 +6,13 @@ import { InstallPrompt } from '@/components/ui/InstallPrompt'
 import { PullToRefresh } from '@/components/ui/PullToRefresh'
 import { useTriggerRefresh } from '@/contexts/RefreshContext'
 
+const PULL_TO_REFRESH_PATHS = new Set(['/', '/my'])
+
 export default function Layout() {
   const triggerRefresh = useTriggerRefresh()
+  const { pathname } = useLocation()
+
+  const pullEnabled = PULL_TO_REFRESH_PATHS.has(pathname)
 
   async function handleRefresh() {
     await new Promise<void>((resolve) => {
@@ -40,7 +45,7 @@ export default function Layout() {
         </header>
 
         <div className="flex-1 min-h-0 pb-[env(safe-area-inset-bottom)]">
-          <PullToRefresh onRefresh={handleRefresh}>
+          <PullToRefresh onRefresh={pullEnabled ? handleRefresh : null}>
             <div className="px-4 pt-4 pb-24">
               <Outlet />
             </div>

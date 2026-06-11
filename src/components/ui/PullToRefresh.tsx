@@ -2,7 +2,7 @@ import { useRef, useState, useCallback } from 'react'
 import { RefreshCw } from 'lucide-react'
 
 interface PullToRefreshProps {
-  onRefresh: () => Promise<void>
+  onRefresh: (() => Promise<void>) | null
   children: React.ReactNode
 }
 
@@ -21,13 +21,13 @@ export function PullToRefresh({ onRefresh, children }: PullToRefreshProps) {
   }, [])
 
   function onTouchStart(e: React.TouchEvent) {
-    if (!isAtTop()) return
+    if (!onRefresh || !isAtTop()) return
     startY.current = e.touches[0].clientY
     setPhase('pulling')
   }
 
   function onTouchMove(e: React.TouchEvent) {
-    if (phase === 'refreshing') return
+    if (!onRefresh || phase === 'refreshing') return
     const delta = e.touches[0].clientY - startY.current
     if (delta <= 0) { setPullY(0); setPhase('pulling'); return }
     // 阻力感：前半段 1:1，後半段 1:0.4
@@ -38,12 +38,14 @@ export function PullToRefresh({ onRefresh, children }: PullToRefreshProps) {
   }
 
   async function onTouchEnd() {
-    if (phase === 'ready') {
-      setPhase('refreshing')
-      setPullY(52)
-      await onRefresh()
+    if (!onRefresh || phase !== 'ready') {
+      setPullY(0)
+      setPhase('idle')
+      return
     }
-    // 彈回
+    setPhase('refreshing')
+    setPullY(52)
+    await onRefresh()
     setPullY(0)
     setPhase('idle')
   }

@@ -73,6 +73,14 @@ body {
   box-shadow: 0 0 0 3px var(--color-focus-ring) !important;
 }
 
+/* ── 全域移除 focus-visible 預設黑框 ── */
+*:focus {
+  outline: none;
+}
+*:focus-visible {
+  outline: none;
+}
+
 /* ── Input / Textarea / Select focus 光暈 ── */
 input:focus,
 textarea:focus,
