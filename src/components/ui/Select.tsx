@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { ChevronDown, Check } from 'lucide-react'
 
 export interface SelectOption<T extends string = string> {
@@ -29,7 +29,9 @@ export function Select<T extends string = string>({
   size = 'md',
 }: SelectProps<T>) {
   const [open, setOpen] = useState(false)
+  const [dropUp, setDropUp] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
 
   const selectedLabel = options.find((o) => o.value === value)?.label ?? ''
 
@@ -40,6 +42,23 @@ export function Select<T extends string = string>({
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
+
+  // 偵測下方空間，決定向上還是向下展開
+  const calcDropDirection = useCallback(() => {
+    const el = containerRef.current
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    const spaceBelow = window.innerHeight - rect.bottom
+    const spaceAbove = rect.top
+    setDropUp(spaceBelow < 240 && spaceAbove > spaceBelow)
+  }, [])
+
+  // 選中項目自動捲入視野
+  useEffect(() => {
+    if (!open || !dropdownRef.current) return
+    const el = dropdownRef.current.querySelector('[aria-selected="true"]') as HTMLElement | null
+    el?.scrollIntoView({ block: 'nearest' })
+  }, [open])
 
   function select(val: T) {
     onChange(val)
@@ -56,7 +75,7 @@ export function Select<T extends string = string>({
       <button
         type="button"
         disabled={disabled}
-        onClick={() => !disabled && setOpen((v) => !v)}
+        onClick={() => { if (!disabled) { calcDropDirection(); setOpen((v) => !v) } }}
         className={[
           'w-full flex items-center justify-between rounded-xl border text-left focus:outline-none',
           size === 'sm' ? 'px-2.5 py-1 text-xs' : 'px-3 py-2.5 text-sm',
@@ -84,7 +103,8 @@ export function Select<T extends string = string>({
       {/* Dropdown panel */}
       {open && (
         <div
-          className="absolute z-50 w-full mt-1.5 bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl shadow-lg overflow-hidden"
+          ref={dropdownRef}
+          className={`absolute z-50 w-full bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl shadow-lg overflow-hidden ${dropUp ? 'bottom-full mb-1.5' : 'top-full mt-1.5'}`}
           style={{ animation: 'selectFadeIn 0.12s ease' }}
           role="listbox"
         >

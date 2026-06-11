@@ -15,6 +15,7 @@ import { Select } from '@/components/ui/Select'
 import { TimePicker } from '@/components/ui/TimePicker'
 import { useNotifications } from '@/hooks/useNotifications'
 import type { NotificationRule } from '@/hooks/useNotifications'
+import { usePushSubscription } from '@/hooks/usePushSubscription'
 import { format } from 'date-fns'
 import { zhTW } from 'date-fns/locale'
 
@@ -53,6 +54,7 @@ export default function NotificationsPage() {
   })
   const [testTitle, setTestTitle] = useState('')
   const [testBody, setTestBody] = useState('')
+  const { status: pushStatus, errorMsg: pushError, subscribe, unsubscribe } = usePushSubscription()
 
   async function handleToggleMaster() {
     const ok = await toggleMaster()
@@ -163,6 +165,38 @@ export default function NotificationsPage() {
               </div>
             )}
           </div>
+
+          {/* Web Push 背景通知訂閱 */}
+          {pushStatus !== 'unsupported' && settings.masterEnabled && (
+            <div className="p-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-card)]">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <Bell size={18} strokeWidth={1.5} className="text-[var(--color-primary)] shrink-0" />
+                  <div>
+                    <p className="font-medium text-[var(--color-text)] text-sm">背景推播（App 關閉也能收）</p>
+                    <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
+                      {pushStatus === 'loading' && '檢查訂閱狀態…'}
+                      {pushStatus === 'subscribed' && '已啟用背景推播 ✓'}
+                      {pushStatus === 'unsubscribed' && '尚未訂閱，點擊啟用'}
+                      {pushStatus === 'error' && (pushError ?? '發生錯誤，請重試')}
+                    </p>
+                  </div>
+                </div>
+                {pushStatus !== 'loading' && (
+                  <button
+                    onClick={pushStatus === 'subscribed' ? unsubscribe : subscribe}
+                    className={`shrink-0 text-xs px-3 py-1.5 rounded-lg font-medium transition-colors ${
+                      pushStatus === 'subscribed'
+                        ? 'border border-[var(--color-border)] text-[var(--color-text-muted)] hover:bg-[var(--color-bg-muted)]'
+                        : 'bg-[var(--color-primary)] text-white hover:opacity-90'
+                    }`}
+                  >
+                    {pushStatus === 'subscribed' ? '取消訂閱' : '啟用'}
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Expiry reminder */}
           <div className={`p-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-card)] space-y-3 ${!settings.masterEnabled ? 'opacity-50 pointer-events-none' : ''}`}>
