@@ -1,16 +1,18 @@
-import { Outlet, useLocation } from 'react-router-dom'
+import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import BottomNav from './BottomNav'
 import Sidebar from './Sidebar'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
 import { InstallPrompt } from '@/components/ui/InstallPrompt'
 import { PullToRefresh } from '@/components/ui/PullToRefresh'
 import { useTriggerRefresh } from '@/contexts/RefreshContext'
+import { Bell } from 'lucide-react'
 
 const PULL_TO_REFRESH_PATHS = new Set(['/', '/my'])
 
 export default function Layout() {
   const triggerRefresh = useTriggerRefresh()
   const { pathname } = useLocation()
+  const navigate = useNavigate()
 
   const pullEnabled = PULL_TO_REFRESH_PATHS.has(pathname)
 
@@ -29,7 +31,13 @@ export default function Layout() {
       <div className="hidden lg:flex">
         <Sidebar />
         <div className="flex-1 ml-64 min-h-screen flex flex-col">
-          <header className="flex justify-end px-6 py-3 border-b border-[var(--color-border)]">
+          <header className="flex items-center justify-end gap-1 px-6 py-3 border-b border-[var(--color-border)]">
+            <button
+              onClick={() => navigate('/my/notifications')}
+              className="p-1.5 rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-primary)] hover:bg-[var(--color-primary-light)] transition-colors"
+            >
+              <Bell size={18} strokeWidth={1.5} />
+            </button>
             <ThemeToggle />
           </header>
           <main className="flex-1 px-6 py-6 max-w-4xl">
@@ -40,7 +48,13 @@ export default function Layout() {
 
       {/* Mobile layout */}
       <div className="lg:hidden flex flex-col h-screen">
-        <header className="flex-shrink-0 flex justify-end px-4 py-2 border-b border-[var(--color-border)] bg-[var(--color-bg-card)]">
+        <header className="flex-shrink-0 flex items-center justify-end gap-1 px-4 py-2 border-b border-[var(--color-border)] bg-[var(--color-bg-card)]">
+          <button
+            onClick={() => navigate('/my/notifications')}
+            className="p-1.5 rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-primary)] hover:bg-[var(--color-primary-light)] transition-colors"
+          >
+            <Bell size={18} strokeWidth={1.5} />
+          </button>
           <ThemeToggle />
         </header>
 
