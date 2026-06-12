@@ -21,10 +21,13 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>
 
-function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
+function Field({ label, required, error, children }: { label: string; required?: boolean; error?: string; children: React.ReactNode }) {
   return (
     <div>
-      <label className="block text-sm font-medium text-[var(--color-text)] mb-1">{label}</label>
+      <label className="block text-sm font-medium text-[var(--color-text)] mb-1">
+        {label}
+        {required && <span className="ml-0.5 text-[var(--color-primary)]">*</span>}
+      </label>
       {children}
       {error && <p className="text-xs font-medium mt-1.5" style={{ color: 'var(--color-primary-dark)' }}>{error}</p>}
     </div>
@@ -68,7 +71,7 @@ export default function MedicationFormPage() {
         reason: data.reason,
         note: data.note || null,
       })
-      if (error) { showToast('更新失敗', 'error'); setSubmitting(false); return }
+      if (error) { showToast('更新失敗', 'error', error.message); setSubmitting(false); return }
       showToast('已更新')
       navigate(`/my/medications/${id}`)
     } else {
@@ -77,7 +80,7 @@ export default function MedicationFormPage() {
         reason: data.reason,
         note: data.note || null,
       })
-      if (error) { showToast('新增失敗', 'error'); setSubmitting(false); return }
+      if (error) { showToast('新增失敗', 'error', error.message); setSubmitting(false); return }
       showToast('已建立用藥紀錄')
       navigate(`/my/medications/${created?.id}`)
     }
@@ -97,13 +100,14 @@ export default function MedicationFormPage() {
         <Controller name="pickup_date" control={control} render={({ field }) => (
           <DatePicker
             label="拿藥日期"
+            required
             value={field.value ?? ''}
             onChange={field.onChange}
             error={errors.pickup_date?.message}
           />
         )} />
 
-        <Field label="原因（症狀 / 就診科別）" error={errors.reason?.message}>
+        <Field label="原因（症狀 / 就診科別）" required error={errors.reason?.message}>
           <Input
             {...register('reason')}
             placeholder="例：過敏、皮膚科回診"

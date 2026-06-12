@@ -13,6 +13,7 @@ interface DatePickerProps {
   value: string        // 'yyyy-MM-dd' or ''
   onChange: (value: string) => void
   label?: string
+  required?: boolean
   placeholder?: string
   error?: string
   disabled?: boolean
@@ -23,7 +24,7 @@ const THIS_YEAR = new Date().getFullYear()
 const YEAR_OPTIONS = Array.from({ length: 30 }, (_, i) => THIS_YEAR - 20 + i)
 const MONTH_OPTIONS = Array.from({ length: 12 }, (_, i) => ({ value: i, label: `${i + 1} 月` }))
 
-export function DatePicker({ value, onChange, label, placeholder = '選擇日期', error, disabled }: DatePickerProps) {
+export function DatePicker({ value, onChange, label, required, placeholder = '選擇日期', error, disabled }: DatePickerProps) {
   const parsed = value ? parse(value, 'yyyy-MM-dd', new Date()) : null
   const selected = parsed && isValid(parsed) ? parsed : null
 
@@ -70,7 +71,10 @@ export function DatePicker({ value, onChange, label, placeholder = '選擇日期
   return (
     <div ref={containerRef} className="relative">
       {label && (
-        <label className="block text-sm font-medium text-[var(--color-text)] mb-1">{label}</label>
+        <label className="block text-sm font-medium text-[var(--color-text)] mb-1">
+          {label}
+          {required && <span className="ml-0.5 text-[var(--color-primary)]">*</span>}
+        </label>
       )}
 
       {/* Trigger */}

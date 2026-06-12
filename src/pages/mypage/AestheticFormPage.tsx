@@ -14,10 +14,13 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>
 
-function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
+function Field({ label, required, error, children }: { label: string; required?: boolean; error?: string; children: React.ReactNode }) {
   return (
     <div>
-      <label className="block text-sm font-medium text-[var(--color-text)] mb-1">{label}</label>
+      <label className="block text-sm font-medium text-[var(--color-text)] mb-1">
+        {label}
+        {required && <span className="ml-0.5 text-[var(--color-primary)]">*</span>}
+      </label>
       {children}
       {error && <p className="text-xs font-medium mt-1.5" style={{ color: 'var(--color-primary-dark)' }}>{error}</p>}
     </div>
@@ -55,7 +58,7 @@ export default function AestheticFormPage() {
     if (!id) return
     setSubmitting(true)
     const { error } = await updateTreatment(Number(id), { name: data.name, note: data.note || null })
-    if (error) { showToast('更新失敗', 'error'); setSubmitting(false); return }
+    if (error) { showToast('更新失敗', 'error', error.message); setSubmitting(false); return }
     showToast('已更新')
     navigate(`/my/aesthetic/${id}`)
     setSubmitting(false)
@@ -71,7 +74,7 @@ export default function AestheticFormPage() {
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-        <Field label="療程名稱" error={errors.name?.message}>
+        <Field label="療程名稱" required error={errors.name?.message}>
           <Input {...register('name')} placeholder="例：皮秒雷射" error={errors.name?.message} />
         </Field>
 

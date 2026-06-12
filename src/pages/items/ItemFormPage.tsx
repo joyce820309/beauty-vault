@@ -64,10 +64,12 @@ type FormData = z.infer<typeof schema>;
 
 function Field({
   label,
+  required,
   error,
   children,
 }: {
   label: string;
+  required?: boolean;
   error?: string;
   children: React.ReactNode;
 }) {
@@ -75,6 +77,7 @@ function Field({
     <div>
       <label className="block text-sm font-medium text-[var(--color-text)] mb-1">
         {label}
+        {required && <span className="ml-0.5 text-[var(--color-primary)]">*</span>}
       </label>
       {children}
       {error && (
@@ -290,8 +293,12 @@ export default function ItemFormPage() {
       if (data.name_zh) addCustomOption('name_zh', data.name_zh)
       if (data.shade_en) addCustomOption('shade_en', data.shade_en)
       if (isEdit) navigate(`/items/${id}`, { replace: true })
-    } catch {
-      showToast("儲存失敗，請稍後再試", "error");
+    } catch (err) {
+      const detail =
+        err instanceof Error ? err.message
+        : typeof err === 'object' && err !== null && 'message' in err ? String((err as { message: unknown }).message)
+        : undefined
+      showToast("儲存失敗，請稍後再試", "error", detail)
     }
     setSubmitting(false);
   };
@@ -318,7 +325,7 @@ export default function ItemFormPage() {
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
         {/* 品項類型 */}
-        <Field label="品項類型" error={errors.item_type?.message}>
+        <Field label="品項類型" required error={errors.item_type?.message}>
           <div className="flex gap-2">
             {(["makeup", "skincare"] as const).map((t) => (
               <button

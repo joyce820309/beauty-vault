@@ -33,10 +33,13 @@ const TYPES: { value: PurchaseType; label: string; desc: string }[] = [
   { value: 'package', label: '課程包', desc: '多堂購入，可有贈堂' },
 ]
 
-function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
+function Field({ label, required, error, children }: { label: string; required?: boolean; error?: string; children: React.ReactNode }) {
   return (
     <div>
-      <label className="block text-sm font-medium text-[var(--color-text)] mb-1">{label}</label>
+      <label className="block text-sm font-medium text-[var(--color-text)] mb-1">
+        {label}
+        {required && <span className="ml-0.5 text-[var(--color-primary)]">*</span>}
+      </label>
       {children}
       {error && <p className="text-xs font-medium mt-1.5" style={{ color: 'var(--color-primary-dark)' }}>{error}</p>}
     </div>
@@ -143,7 +146,7 @@ export default function PurchaseFormPage() {
         treatmentId = existing.id
       } else {
         const { data: created, error } = await createTreatment({ name: data.treatment_name, note: null })
-        if (error || !created) { showToast('建立療程失敗', 'error'); setSubmitting(false); return }
+        if (error || !created) { showToast('建立療程失敗', 'error', error?.message); setSubmitting(false); return }
         treatmentId = created.id
       }
     }
@@ -162,12 +165,12 @@ export default function PurchaseFormPage() {
 
     if (isEdit) {
       const { error } = await updatePurchase(Number(purchaseId), payload)
-      if (error) { showToast('更新失敗', 'error'); setSubmitting(false); return }
+      if (error) { showToast('更新失敗', 'error', error.message); setSubmitting(false); return }
       showToast('已更新')
       navigate(`/my/aesthetic/${treatmentId}`)
     } else {
       const { error } = await createPurchase(payload)
-      if (error) { showToast('新增失敗', 'error'); setSubmitting(false); return }
+      if (error) { showToast('新增失敗', 'error', error.message); setSubmitting(false); return }
       showToast('已新增購入紀錄')
       navigate(`/my/aesthetic/${treatmentId}`)
     }
@@ -197,7 +200,7 @@ export default function PurchaseFormPage() {
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
 
         {/* 療程名稱（combobox） */}
-        <Field label="療程名稱" error={errors.treatment_name?.message}>
+        <Field label="療程名稱" required error={errors.treatment_name?.message}>
           <div className="relative">
             <input
               {...register('treatment_name')}
@@ -237,7 +240,7 @@ export default function PurchaseFormPage() {
         </Field>
 
         {/* 課程類型 */}
-        <Field label="課程類型">
+        <Field label="課程類型" required>
           <div className="grid grid-cols-3 gap-2">
             {TYPES.map(t => (
               <button
@@ -260,7 +263,7 @@ export default function PurchaseFormPage() {
         {/* 堂數（課程包才顯示） */}
         {purchaseType === 'package' && (
           <div className="grid grid-cols-2 gap-3">
-            <Field label="付費堂數" error={errors.paid_sessions?.message}>
+            <Field label="付費堂數" required error={errors.paid_sessions?.message}>
               <Input type="number" min={1} {...register('paid_sessions')} error={errors.paid_sessions?.message} />
             </Field>
             <Field label="贈送堂數（選填）">
@@ -273,6 +276,7 @@ export default function PurchaseFormPage() {
         <Controller name="purchase_date" control={control} render={({ field }) => (
           <DatePicker
             label="購入日期"
+            required
             value={field.value ?? ''}
             onChange={field.onChange}
             error={errors.purchase_date?.message}
