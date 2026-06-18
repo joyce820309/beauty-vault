@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Sparkle, Palette, Milk, Zap, Heart, Pencil, Trash2 } from 'lucide-react'
 import type { Item } from '@/types/database'
@@ -42,10 +42,12 @@ export function ItemCard({
   // swipe state
   const [offsetX, setOffsetX] = useState(0)
   const [swiped, setSwiped] = useState(false)
+  const swipedRef = useRef(false)  // mirrors swiped for non-passive event handler
   const touchStartX = useRef(0)
   const touchStartY = useRef(0)
   const isDragging = useRef(false)
   const isScrolling = useRef<boolean | null>(null)  // null = not yet determined
+  const cardRef = useRef<HTMLDivElement>(null)
 
   const namePrimary = item.name_en || item.name_zh || '（未命名）'
   const nameSecondary = item.name_en && item.name_zh ? item.name_zh : null
@@ -63,30 +65,34 @@ export function ItemCard({
     isScrolling.current = null
   }
 
-  function onTouchMove(e: React.TouchEvent) {
-    if (!isDragging.current) return
-    const dx = e.touches[0].clientX - touchStartX.current
-    const dy = e.touches[0].clientY - touchStartY.current
+  // 用原生 non-passive listener 處理 touchmove，才能有效呼叫 preventDefault() 阻止頁面捲動
+  useEffect(() => {
+    const el = cardRef.current
+    if (!el) return
+    function handleTouchMove(e: TouchEvent) {
+      if (!isDragging.current) return
+      const dx = e.touches[0].clientX - touchStartX.current
+      const dy = e.touches[0].clientY - touchStartY.current
 
-    // 方向尚未鎖定：等累積足夠位移再判定，避免微小抖動誤判
-    if (isScrolling.current === null) {
-      const dist = Math.sqrt(dx * dx + dy * dy)
-      if (dist < DIRECTION_LOCK_THRESHOLD) return  // 還不夠，繼續等
-      // 水平分量明顯大於垂直才視為水平滑動（比例 1.5:1）
-      isScrolling.current = Math.abs(dy) > Math.abs(dx) * 1.5
+      if (isScrolling.current === null) {
+        const dist = Math.sqrt(dx * dx + dy * dy)
+        if (dist < DIRECTION_LOCK_THRESHOLD) return
+        isScrolling.current = Math.abs(dy) > Math.abs(dx) * 1.5
+      }
+
+      if (isScrolling.current) return
+
+      // 確認水平方向：阻止頁面上下捲動（passive: false 才有效）
+      e.preventDefault()
+
+      const base = swipedRef.current ? -ACTION_WIDTH : 0
+      const raw = base + dx
+      const clamped = Math.max(-ACTION_WIDTH, Math.min(0, raw))
+      setOffsetX(clamped)
     }
-
-    // 已確認垂直：完全放行，讓頁面捲動
-    if (isScrolling.current) return
-
-    // 已確認水平：鎖定，阻止頁面捲動
-    e.preventDefault()
-
-    const base = swiped ? -ACTION_WIDTH : 0
-    const raw = base + dx
-    const clamped = Math.max(-ACTION_WIDTH, Math.min(0, raw))
-    setOffsetX(clamped)
-  }
+    el.addEventListener('touchmove', handleTouchMove, { passive: false })
+    return () => el.removeEventListener('touchmove', handleTouchMove)
+  }, [])  // 只掛一次；swipedRef 以 ref 形式讀取避免 stale closure
 
   function onTouchEnd() {
     if (!isDragging.current || isScrolling.current) {
@@ -99,15 +105,18 @@ export function ItemCard({
     if (offsetX < mid) {
       setOffsetX(-ACTION_WIDTH)
       setSwiped(true)
+      swipedRef.current = true
     } else {
       setOffsetX(0)
       setSwiped(false)
+      swipedRef.current = false
     }
   }
 
   function closeSwipe() {
     setOffsetX(0)
     setSwiped(false)
+    swipedRef.current = false
   }
 
   // ── flag / delete handlers ───────────────────────────────
@@ -164,12 +173,12 @@ export function ItemCard({
             ? 'border-[var(--color-accent)]/40'
             : 'border-[var(--color-border)]'
         }`}
+        ref={cardRef}
         style={{
           transform: `translateX(${offsetX}px)`,
           transition: isDragging.current ? 'none' : 'transform 0.2s ease',
         }}
         onTouchStart={onTouchStart}
-        onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
         // click outside swipe area closes it
         onClick={swiped ? (e) => { e.preventDefault(); closeSwipe() } : undefined}
