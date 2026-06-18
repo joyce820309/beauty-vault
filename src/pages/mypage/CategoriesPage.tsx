@@ -216,7 +216,7 @@ function ParentSection({ parent, children, onRenameChild, onDeleteChild, onAddCh
       {!collapsed && (
         <>
           {children.map(child => (
-            <ChildRow key={child.id} cat={child} onRename={onRenameChild} onDelete={onDeleteChild} />
+            <ChildRow key={child.value} cat={child} onRename={onRenameChild} onDelete={onDeleteChild} />
           ))}
 
           {/* 新增子類行內輸入 */}
@@ -283,7 +283,7 @@ function TypeSection({ type, parents, leafCategories, Icon, getChildren, onRenam
 
       {parents.map(parent => (
         <ParentSection
-          key={parent.id}
+          key={parent.value}
           parent={parent}
           children={getChildren(parent.id)}
           onRenameChild={onRenameAny}
@@ -298,7 +298,7 @@ function TypeSection({ type, parents, leafCategories, Icon, getChildren, onRenam
         <div className="border-t border-[var(--color-border)]">
           <p className="px-4 pt-2 pb-0.5 text-[11px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wide">未分組</p>
           {orphaned.map(cat => (
-            <ChildRow key={cat.id} cat={cat} onRename={onRenameAny} onDelete={onDeleteAny} />
+            <ChildRow key={cat.value} cat={cat} onRename={onRenameAny} onDelete={onDeleteAny} />
           ))}
         </div>
       )}

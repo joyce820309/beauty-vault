@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Plus, Package, CheckCircle, Eye, PawPrint } from 'lucide-react'
+import { Plus, Package, CheckCircle, Eye, PawPrint, Palette, ShoppingBag } from 'lucide-react'
 import { getItems } from '@/lib/supabase/items'
 import { getExpiryLevel, expiryColors, type ExpiryLevel } from '@/utils/expiry'
 import { Skeleton } from '@/components/ui/Skeleton'
@@ -173,29 +173,26 @@ export default function HomePage() {
         </section>
       )}
 
-      {/* 快速操作 */}
+      {/* 快速進入 */}
       <section>
-        <h3 className="text-sm font-semibold text-[var(--color-text-muted)] mb-2">快速操作</h3>
+        <h3 className="text-sm font-semibold text-[var(--color-text-muted)] mb-2">快速進入</h3>
         <div className="grid grid-cols-2 gap-3">
-          <Link
-            to="/items/new"
-            className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg-card)] hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-light)] transition-colors"
-          >
-            <Plus size={28} strokeWidth={1.5} className="text-[var(--color-primary)]" />
-            <span className="text-sm font-medium text-[var(--color-text)]">新增品項</span>
-          </Link>
-          <Link
-            to="/items"
-            className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg-card)] hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-light)] transition-colors"
-          >
-            <Package size={28} strokeWidth={1.5} className="text-[var(--color-primary)]" />
-            <span className="text-sm font-medium text-[var(--color-text)]">
-              全部品項
-              {!loading && items.length > 0 && (
-                <span className="text-[var(--color-text-muted)] font-normal ml-1">({items.length})</span>
-              )}
-            </span>
-          </Link>
+          {[
+            { to: '/my/looks',  Icon: Palette,   label: '妝容主題', sub: '今日妝容' },
+            { to: '/my/wishlist', Icon: ShoppingBag, label: '採購清單', sub: '待買清單' },
+            { to: '/items/new', Icon: Plus,      label: '新增品項', sub: null },
+            { to: '/items',     Icon: Package,   label: '全部品項', sub: !loading && items.length > 0 ? `${items.length} 件` : null },
+          ].map(({ to, Icon, label, sub }) => (
+            <Link
+              key={to}
+              to={to}
+              className="flex flex-col items-center justify-center gap-1.5 p-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg-card)] hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-light)] transition-colors"
+            >
+              <Icon size={26} strokeWidth={1.5} className="text-[var(--color-primary)]" />
+              <span className="text-sm font-medium text-[var(--color-text)]">{label}</span>
+              {sub && <span className="text-xs text-[var(--color-text-muted)]">{sub}</span>}
+            </Link>
+          ))}
         </div>
       </section>
     </div>

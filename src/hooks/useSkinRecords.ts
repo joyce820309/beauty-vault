@@ -49,7 +49,8 @@ export function useProfile() {
   }, [refreshKey])
 
   async function saveProfile(data: Omit<Profile, 'id' | 'updated_at'>) {
-    const { data: saved } = await upsertProfile(data)
+    const id = profile?.id ?? 1
+    const { data: saved } = await upsertProfile({ ...data, id })
     if (saved) setProfile(saved)
   }
 

@@ -19,7 +19,7 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { Lightbox } from '@/components/ui/Lightbox'
 import { useToast } from '@/components/ui/Toast'
 import type { MedicationRecordWithItems, MedicationItem } from '@/types/database'
-import { format, parseISO } from 'date-fns'
+import { format, parseISO, addMonths } from 'date-fns'
 
 // ---------- 藥品表單 schema ----------
 const itemSchema = z.object({
@@ -54,7 +54,7 @@ function MedicationItemForm({
       .map(url => ({ url: url! }))
   })
 
-  const { register, handleSubmit, control, formState: { errors } } = useForm<ItemFormData>({
+  const { register, handleSubmit, control, setValue: setItemValue, formState: { errors } } = useForm<ItemFormData>({
     resolver: zodResolver(itemSchema),
     defaultValues: {
       name: editing?.name ?? '',
@@ -154,9 +154,9 @@ function MedicationItemForm({
               <Camera size={20} strokeWidth={1.5} />
               <span className="text-xs">新增</span>
             </div>
-            <input type="file" accept="image/*" className="hidden" onChange={(e) => {
-              const f = e.target.files?.[0]
-              if (f) addImage(f)
+            <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => {
+              const files = Array.from(e.target.files ?? [])
+              files.forEach(f => addImage(f))
               e.target.value = ''
             }} />
           </label>
@@ -166,7 +166,19 @@ function MedicationItemForm({
       {/* 製造/有效期限 */}
       <div className="grid grid-cols-2 gap-3">
         <Controller name="mfg_date" control={control} render={({ field }) => (
-          <DatePicker label="製造日期" value={field.value ?? ''} onChange={field.onChange} />
+          <DatePicker
+            label="製造日期"
+            value={field.value ?? ''}
+            onChange={field.onChange}
+            shortcuts={[{
+              label: '看診日',
+              getDate: () => {
+                const today = new Date()
+                setItemValue('exp_date', format(addMonths(today, 6), 'yyyy-MM-dd'))
+                return today
+              },
+            }]}
+          />
         )} />
         <Controller name="exp_date" control={control} render={({ field }) => (
           <DatePicker label="有效期限" value={field.value ?? ''} onChange={field.onChange} />
@@ -354,13 +366,15 @@ export default function MedicationDetailPage() {
         <div className="flex gap-2">
           <Link
             to={`/my/medications/${id}/edit`}
-            className="px-3 py-2 rounded-xl border border-[var(--color-primary)] text-[var(--color-primary)] text-sm font-medium flex items-center min-h-0"
+            className="px-3 py-2 rounded-xl text-sm font-medium flex items-center min-h-0 transition-opacity hover:opacity-70 active:opacity-50"
+            style={{ color: '#7A8FA8', background: '#c2cad880' }}
           >
             編輯
           </Link>
           <button
             onClick={handleDeleteRecord}
-            className="px-3 py-2 rounded-xl border border-red-200 text-red-400 text-sm font-medium min-h-0"
+            className="px-3 py-2 rounded-xl text-sm font-medium min-h-0 text-[var(--color-danger)] transition-opacity hover:opacity-70 active:opacity-50"
+            style={{ background: 'color-mix(in srgb, var(--color-danger) 12%, transparent)' }}
           >
             刪除
           </button>

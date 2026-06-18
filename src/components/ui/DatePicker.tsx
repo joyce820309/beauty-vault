@@ -9,6 +9,11 @@ import {
 } from 'date-fns'
 import { zhTW } from 'date-fns/locale'
 
+interface ShortcutDef {
+  label: string
+  getDate: () => Date
+}
+
 interface DatePickerProps {
   value: string        // 'yyyy-MM-dd' or ''
   onChange: (value: string) => void
@@ -17,6 +22,7 @@ interface DatePickerProps {
   placeholder?: string
   error?: string
   disabled?: boolean
+  shortcuts?: ShortcutDef[]
 }
 
 const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六']
@@ -24,7 +30,7 @@ const THIS_YEAR = new Date().getFullYear()
 const YEAR_OPTIONS = Array.from({ length: 30 }, (_, i) => THIS_YEAR - 20 + i)
 const MONTH_OPTIONS = Array.from({ length: 12 }, (_, i) => ({ value: i, label: `${i + 1} 月` }))
 
-export function DatePicker({ value, onChange, label, required, placeholder = '選擇日期', error, disabled }: DatePickerProps) {
+export function DatePicker({ value, onChange, label, required, placeholder = '選擇日期', error, disabled, shortcuts }: DatePickerProps) {
   const parsed = value ? parse(value, 'yyyy-MM-dd', new Date()) : null
   const selected = parsed && isValid(parsed) ? parsed : null
 
@@ -257,15 +263,25 @@ export function DatePicker({ value, onChange, label, required, placeholder = '�
                 })}
               </div>
 
-              {/* 今天捷徑 */}
-              <div className="mt-3 pt-3 border-t border-[var(--color-border)]">
+              {/* 今天 + 自訂捷徑 */}
+              <div className="mt-3 pt-3 border-t border-[var(--color-border)] flex gap-1">
                 <button
                   type="button"
                   onClick={() => selectDate(new Date())}
-                  className="w-full py-1.5 rounded-lg text-xs text-[var(--color-primary)] font-medium hover:bg-[var(--color-primary-light)] transition-colors min-h-0"
+                  className="flex-1 py-1.5 rounded-lg text-xs text-[var(--color-primary)] font-medium hover:bg-[var(--color-primary-light)] transition-colors min-h-0"
                 >
                   今天
                 </button>
+                {shortcuts?.map((s) => (
+                  <button
+                    key={s.label}
+                    type="button"
+                    onClick={() => selectDate(s.getDate())}
+                    className="flex-1 py-1.5 rounded-lg text-xs text-[var(--color-primary)] font-medium hover:bg-[var(--color-primary-light)] transition-colors min-h-0"
+                  >
+                    {s.label}
+                  </button>
+                ))}
               </div>
             </div>
           )}

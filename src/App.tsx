@@ -25,6 +25,9 @@ import ToolListPage from "@/pages/tools/ToolListPage";
 import ToolDetailPage from "@/pages/tools/ToolDetailPage";
 import ToolFormPage from "@/pages/tools/ToolFormPage";
 import NotificationsPage from "@/pages/mypage/NotificationsPage";
+import ExportPage from "@/pages/mypage/ExportPage";
+import LooksPage from "@/pages/looks/LooksPage";
+import LookFormPage from "@/pages/looks/LookFormPage";
 import { CategoriesProvider } from "@/contexts/CategoriesContext";
 import { useNotificationScheduler } from "@/hooks/useNotificationScheduler";
 
@@ -55,6 +58,10 @@ function AppRoutes() {
         <Route path="my/categories" element={<CategoriesPage />} />
         <Route path="my/channels" element={<ChannelsPage />} />
         <Route path="my/notifications" element={<NotificationsPage />} />
+        <Route path="my/export" element={<ExportPage />} />
+        <Route path="my/looks" element={<LooksPage />} />
+        <Route path="my/looks/new" element={<LookFormPage />} />
+        <Route path="my/looks/:id/edit" element={<LookFormPage />} />
         <Route path="my/medications" element={<MedicationListPage />} />
         <Route path="my/medications/new" element={<MedicationFormPage />} />
         <Route path="my/medications/:id" element={<MedicationDetailPage />} />

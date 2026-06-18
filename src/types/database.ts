@@ -89,6 +89,7 @@ export interface Profile {
   face_shape: string | null
   skin_type: string | null
   note: string | null
+  export_skin_template: string | null
   updated_at: string
 }
 
@@ -188,5 +189,38 @@ export interface TreatmentSession {
 export type TreatmentWithData = Treatment & {
   treatment_purchases: TreatmentPurchase[]
   treatment_sessions: TreatmentSession[]
+}
+
+export type LookSlot =
+  | 'eye_upper'
+  | 'eye_lower'
+  | 'cheek_expand'
+  | 'cheek_vibe'
+  | 'cheek_contour'
+  | 'lip_base'
+  | 'lip_liner'
+  | 'lip_color'
+
+export interface MakeupTheme {
+  id: number
+  name: string
+  note: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface MakeupThemeSlot {
+  id: number
+  theme_id: number
+  slot: LookSlot
+  item_id: number | null
+  custom_text: string | null
+  shade_override: string | null
+  lip_base_bool: boolean | null
+  created_at: string
+}
+
+export type MakeupThemeWithSlots = MakeupTheme & {
+  makeup_theme_slots: MakeupThemeSlot[]
 }
 

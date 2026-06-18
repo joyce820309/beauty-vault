@@ -29,11 +29,14 @@ const SKIN_TYPES = [
   { value: 'normal', label: '中性' },
 ]
 
+const DEFAULT_SKIN_TEMPLATE = ``
+
 type FormData = {
   seasonal_color: SeasonalColor | ''
   face_shape: string
   skin_type: string
   note: string
+  export_skin_template: string
 }
 
 function OptionGroup<T extends string>({
@@ -72,7 +75,7 @@ export default function ProfilePage() {
   const navigate = useNavigate()
   const { profile, loading, saveProfile } = useProfile()
   const { register, handleSubmit, watch, setValue, reset } = useForm<FormData>({
-    defaultValues: { seasonal_color: '', face_shape: '', skin_type: '', note: '' },
+    defaultValues: { seasonal_color: '', face_shape: '', skin_type: '', note: '', export_skin_template: '' },
   })
 
   useEffect(() => {
@@ -82,6 +85,7 @@ export default function ProfilePage() {
         face_shape: profile.face_shape ?? '',
         skin_type: profile.skin_type ?? '',
         note: profile.note ?? '',
+        export_skin_template: profile.export_skin_template ?? DEFAULT_SKIN_TEMPLATE,
       })
     }
   }, [profile, reset])
@@ -92,6 +96,7 @@ export default function ProfilePage() {
       face_shape: data.face_shape || null,
       skin_type: data.skin_type || null,
       note: data.note || null,
+      export_skin_template: data.export_skin_template || null,
     })
     navigate(-1)
   }
@@ -137,6 +142,16 @@ export default function ProfilePage() {
               rows={3}
               placeholder="其他個人資訊…"
               className="w-full px-3 py-2.5 rounded-xl border border-[var(--color-border)] text-sm text-[var(--color-text)] bg-[var(--color-bg-card)] focus:outline-none focus:border-[var(--color-primary)] resize-none"
+            />
+          </div>
+          <div>
+            <p className="text-sm font-medium text-[var(--color-text)] mb-1">膚況 AI 模板</p>
+            <p className="text-xs text-[var(--color-text-muted)] mb-2">匯出文件時的膚況說明，會直接貼入 AI 對話。請勿放置個人識別資訊以外的內容。</p>
+            <textarea
+              {...register('export_skin_template')}
+              rows={14}
+              placeholder={DEFAULT_SKIN_TEMPLATE}
+              className="w-full px-3 py-2.5 rounded-xl border border-[var(--color-border)] text-sm text-[var(--color-text)] bg-[var(--color-bg-card)] focus:outline-none focus:border-[var(--color-primary)] resize-y font-mono leading-relaxed"
             />
           </div>
           <button

@@ -82,8 +82,23 @@ color-mix(in srgb, var(--color-danger) 15%, transparent)
 ### Button
 - 主要：`bg-[var(--color-primary)] text-white`
 - 次要：`border border-[var(--color-border)] text-[var(--color-text-muted)]`
-- 危險：`border border-[var(--color-danger)] text-[var(--color-danger)]`
 - 所有 button 加 `min-h-0` 防止 iOS 最小高度
+
+#### 功能按鈕（編輯、新增等）— 霧藍灰，無 border
+
+```tsx
+className="px-3 py-2 rounded-xl text-sm font-medium transition-opacity hover:opacity-70 active:opacity-50"
+style={{ color: '#7A8FA8', background: '#c2cad880' }}
+```
+
+#### 刪除按鈕 — 玫瑰色系，無 border
+
+```tsx
+className="px-3 py-2 rounded-xl text-sm font-medium text-[var(--color-danger)] transition-opacity hover:opacity-70 active:opacity-50"
+style={{ background: 'color-mix(in srgb, var(--color-danger) 12%, transparent)' }}
+```
+
+> 規則：刪除 → 玫瑰色（`--color-danger`）；編輯／新增等功能 → 霧藍灰（`#7A8FA8`）。兩者皆不加 border。
 
 ### 表單並排
 - 手機（< 640px）：單欄 `grid-cols-1`
