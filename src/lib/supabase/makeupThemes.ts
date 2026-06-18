@@ -1,5 +1,5 @@
 import { supabase } from './client'
-import type { MakeupTheme, MakeupThemeSlot, MakeupThemeWithSlots, LookSlot } from '@/types/database'
+import type { MakeupThemeSlot } from '@/types/database'
 
 export async function getMakeupThemes() {
   return supabase

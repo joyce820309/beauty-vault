@@ -1,4 +1,4 @@
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { Plus, ChevronRight, Trash2, Palette } from 'lucide-react'
 import { useMakeupThemes } from '@/hooks/useMakeupThemes'
 import { Skeleton } from '@/components/ui/Skeleton'
@@ -37,7 +37,7 @@ function getSlotDisplay(s: { custom_text: string | null; shade_override: string 
 }
 
 export default function LooksPage() {
-  const navigate = useNavigate()
+
   const { themes, loading, removeTheme } = useMakeupThemes()
 
   async function handleDelete(e: React.MouseEvent, id: number) {
