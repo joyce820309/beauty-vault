@@ -39,11 +39,13 @@ function MedicationItemForm({
   editing,
   onDone,
   onCancel,
+  pickupDate,
 }: {
   recordId: number
   editing: MedicationItem | null
   onDone: () => void
   onCancel: () => void
+  pickupDate?: string
 }) {
   const { showToast } = useToast()
   const [submitting, setSubmitting] = useState(false)
@@ -109,8 +111,17 @@ function MedicationItemForm({
     onDone()
   }
 
+  const formRef = (el: HTMLFormElement | null) => {
+    if (el && editing) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }
+
   return (
-    <form onSubmit={handleSubmit(onValid)} className="space-y-4 bg-[var(--color-bg-muted)] rounded-2xl p-4">
+    <form
+      ref={formRef}
+      onSubmit={handleSubmit(onValid)}
+      className="space-y-4 bg-[var(--color-bg-muted)] rounded-2xl p-4"
+      style={editing ? { boxShadow: '0 0 0 2px var(--color-focus-ring)' } : undefined}
+    >
       <div className="flex items-center justify-between">
         <p className="text-sm font-semibold text-[var(--color-text)]">{editing ? '編輯藥品' : '新增藥品'}</p>
         <button type="button" onClick={onCancel} className="min-h-0 min-w-0 p-1 text-[var(--color-text-muted)]">
@@ -173,9 +184,9 @@ function MedicationItemForm({
             shortcuts={[{
               label: '看診日',
               getDate: () => {
-                const today = new Date()
-                setItemValue('exp_date', format(addMonths(today, 6), 'yyyy-MM-dd'))
-                return today
+                const base = pickupDate ? parseISO(pickupDate) : new Date()
+                setItemValue('exp_date', format(addMonths(base, 6), 'yyyy-MM-dd'))
+                return base
               },
             }]}
           />
@@ -411,21 +422,18 @@ export default function MedicationDetailPage() {
         )}
       </div>
 
-      {/* 新增 / 編輯表單 */}
-      {(showItemForm || editingItem) && (
+      {/* 新增表單（頂部） */}
+      {showItemForm && (
         <div className="mb-4">
           <MedicationItemForm
             recordId={record.id}
-            editing={editingItem}
+            editing={null}
+            pickupDate={record.pickup_date}
             onDone={async () => {
               setShowItemForm(false)
-              setEditingItem(null)
               await load()
             }}
-            onCancel={() => {
-              setShowItemForm(false)
-              setEditingItem(null)
-            }}
+            onCancel={() => setShowItemForm(false)}
           />
         </div>
       )}
@@ -438,13 +446,27 @@ export default function MedicationDetailPage() {
       ) : (
         <div className="space-y-3">
           {record.medication_items.map((item) => (
-            <MedicationItemCard
-              key={item.id}
-              item={item}
-              onEdit={() => { setEditingItem(item); setShowItemForm(false) }}
-              onDelete={() => handleDeleteItem(item.id)}
-              onImageClick={(urls, idx) => setLightbox({ urls, index: idx })}
-            />
+            editingItem?.id === item.id ? (
+              <MedicationItemForm
+                key={item.id}
+                recordId={record.id}
+                editing={editingItem}
+                pickupDate={record.pickup_date}
+                onDone={async () => {
+                  setEditingItem(null)
+                  await load()
+                }}
+                onCancel={() => setEditingItem(null)}
+              />
+            ) : (
+              <MedicationItemCard
+                key={item.id}
+                item={item}
+                onEdit={() => { setEditingItem(item); setShowItemForm(false) }}
+                onDelete={() => handleDeleteItem(item.id)}
+                onImageClick={(urls, idx) => setLightbox({ urls, index: idx })}
+              />
+            )
           ))}
         </div>
       )}
