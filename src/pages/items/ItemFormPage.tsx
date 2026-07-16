@@ -862,7 +862,7 @@ export default function ItemFormPage() {
         <Field label="備註">
           <AutoTextarea
             {...register("note")}
-            placeholder={"選填\n支援 - 開頭的條列格式"}
+            placeholder={"選填\n支援 - 開頭條列、數字開頭編號清單"}
           />
         </Field>
 

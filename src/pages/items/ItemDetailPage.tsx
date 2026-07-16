@@ -3,7 +3,7 @@ import { useNavigate, useParams, Link } from 'react-router-dom'
 import { getItemById, deleteItem, updateDisposalStatus, updateItemFlag, createItem, updateDisposalWithReason, updateDisposalReason, updateIgnoreHealth } from '@/lib/supabase/items'
 import { DisposalReasonModal } from '@/components/ui/DisposalReasonModal'
 import { QuickClassify } from '@/components/ui/QuickClassify'
-import { NoteContent } from '@/components/ui/AutoTextarea'
+import { CollapsibleNote } from '@/components/ui/AutoTextarea'
 import { ExpiryBadge, SensitiveBadge, PriceBadge, DisposalBadge } from '@/components/ui/Badge'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { Lightbox } from '@/components/ui/Lightbox'
@@ -342,9 +342,8 @@ export default function ItemDetailPage() {
 
       {/* 備註 */}
       {item.note && (
-        <div className="bg-[var(--color-bg-muted)] rounded-2xl px-4 py-4 mb-4">
-          <p className="text-xs text-[var(--color-text-muted)] mb-2">備註</p>
-          <NoteContent text={item.note} />
+        <div className="mb-4">
+          <CollapsibleNote text={item.note} />
         </div>
       )}
 

@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { ExternalLink, Pencil } from 'lucide-react'
-import { getWishlistItem } from '@/lib/supabase/wishlist'
+import { getWishlistItem, updateWishlistItem, uploadWishlistImage } from '@/lib/supabase/wishlist'
 import { Skeleton } from '@/components/ui/Skeleton'
+import { CollapsibleNote } from '@/components/ui/AutoTextarea'
+import { WishForm, type WishFormData } from './WishForm'
+import { useToast } from '@/components/ui/Toast'
 import type { WishlistItem } from '@/types/database'
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
@@ -27,8 +30,10 @@ function itemTypeLabel(type: WishlistItem['item_type']) {
 export default function WishlistDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { showToast } = useToast()
   const [item, setItem] = useState<WishlistItem | null>(null)
   const [loading, setLoading] = useState(true)
+  const [editing, setEditing] = useState(false)
 
   useEffect(() => {
     getWishlistItem(Number(id)).then(({ data }) => {
@@ -36,6 +41,32 @@ export default function WishlistDetailPage() {
       setLoading(false)
     })
   }, [id])
+
+  async function handleEdit(data: WishFormData, imageFile: File | null, imageUrl: string | null) {
+    if (!item) return
+    let finalImageUrl = imageUrl
+    if (imageFile) {
+      const url = await uploadWishlistImage(imageFile)
+      if (url) finalImageUrl = url
+      else showToast('圖片上傳失敗，品項仍會儲存（不含圖片）', 'error')
+    }
+    const { data: updated, error } = await updateWishlistItem(item.id, {
+      item_type:  data.item_type ?? 'makeup',
+      brand:      data.brand || null,
+      name_zh:    data.name_zh || null,
+      name_en:    data.name_en || null,
+      shade:      data.shade || null,
+      price_type: data.price_type ?? 'normal',
+      price:      data.price_type === 'gift' ? 0 : (data.price === '' ? null : Number(data.price) || null),
+      url:        data.url || null,
+      image_url:  finalImageUrl ?? undefined,
+      note:       data.note || null,
+    })
+    if (error) { showToast('更新失敗', 'error'); return }
+    showToast('已更新')
+    setItem(updated)
+    setEditing(false)
+  }
 
   if (loading) {
     return (
@@ -58,17 +89,43 @@ export default function WishlistDetailPage() {
       ? `NT$ ${item.price.toLocaleString()}`
       : null
 
+  if (editing) {
+    return (
+      <div>
+        <div className="flex items-center justify-between mb-5">
+          <p className="text-sm font-semibold text-[var(--color-text)]">編輯品項</p>
+        </div>
+        <WishForm
+          defaultValues={{
+            item_type: item.item_type ?? 'makeup',
+            brand:     item.brand ?? '',
+            name_zh:   item.name_zh ?? '',
+            name_en:   item.name_en ?? '',
+            shade:     item.shade ?? '',
+            price:     item.price ?? '',
+            url:       item.url ?? '',
+            note:      item.note ?? '',
+          }}
+          defaultImageUrl={item.image_url}
+          onSubmit={handleEdit}
+          onCancel={() => setEditing(false)}
+          submitLabel="儲存"
+        />
+      </div>
+    )
+  }
+
   return (
     <div>
       <div className="flex items-center justify-between mb-5">
         <button onClick={() => navigate('/my/wishlist')} className="text-[var(--color-text-muted)] min-h-0 min-w-0 p-1 text-lg">‹</button>
-        <Link
-          to="/my/wishlist"
+        <button
+          onClick={() => setEditing(true)}
           className="px-4 py-2 rounded-xl border border-[var(--color-primary)] text-[var(--color-primary)] text-sm font-medium inline-flex items-center gap-1.5 min-h-0"
         >
           <Pencil size={14} strokeWidth={1.5} />
-          回清單編輯
-        </Link>
+          編輯
+        </button>
       </div>
 
       {item.image_url && (
@@ -131,9 +188,8 @@ export default function WishlistDetailPage() {
       </div>
 
       {item.note && (
-        <div className="bg-[var(--color-bg-muted)] rounded-2xl px-4 py-4 mb-4">
-          <p className="text-xs text-[var(--color-text-muted)] mb-2">備註</p>
-          <p className="text-sm text-[var(--color-text)] whitespace-pre-wrap leading-relaxed">{item.note}</p>
+        <div className="mb-4">
+          <CollapsibleNote text={item.note} />
         </div>
       )}
 
