@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { CollapsibleNote } from '@/components/ui/AutoTextarea'
 import { WishForm, type WishFormData } from './WishForm'
 import { Link, useNavigate } from 'react-router-dom'
-import { Plus, Trash2, ExternalLink, ShoppingBag, Check, Pencil, X, Heart, Zap } from 'lucide-react'
+import { Plus, Trash2, ExternalLink, ShoppingBag, Check, Pencil, X, Heart, Zap, Search } from 'lucide-react'
 import {
   getWishlist, createWishlistItem,
   updateWishlistItem, deleteWishlistItem,
@@ -27,6 +27,7 @@ export default function WishlistPage() {
   const [editingId, setEditingId] = useState<number | null>(null)
   const [tab, setTab] = useState<'all' | 'pending' | 'purchased' | 'favorites'>('pending')
   const [typeFilter, setTypeFilter] = useState<'all' | 'makeup' | 'skincare'>('all')
+  const [search, setSearch] = useState('')
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -154,6 +155,11 @@ export default function WishlistPage() {
 
   const filtered = items.filter((i) => {
     if (typeFilter !== 'all' && (i.item_type ?? 'makeup') !== typeFilter) return false
+    if (search.trim()) {
+      const q = search.trim().toLowerCase()
+      const fields = [i.brand, i.name_zh, i.name_en, i.shade, i.price != null ? String(i.price) : null]
+      if (!fields.some((f) => f?.toLowerCase().includes(q))) return false
+    }
     if (tab === 'pending') return !i.is_purchased
     if (tab === 'purchased') return i.is_purchased
     return true
@@ -196,6 +202,26 @@ export default function WishlistPage() {
           />
         </div>
       )}
+
+      {/* 搜尋列 */}
+      <div className="relative mb-3">
+        <Search size={16} strokeWidth={1.5} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="搜尋品牌、品名、色號、金額…"
+          className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-[var(--color-border)] text-sm text-[var(--color-text)] bg-[var(--color-bg-muted)] focus:outline-none focus:border-[var(--color-primary)]"
+        />
+        {search && (
+          <button
+            onClick={() => setSearch('')}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] min-h-0 min-w-0 w-5 h-5 flex items-center justify-center"
+          >
+            <X size={14} strokeWidth={2} />
+          </button>
+        )}
+      </div>
 
       {/* 類型篩選 */}
       <div className="flex gap-2 mb-3">
@@ -283,8 +309,8 @@ export default function WishlistPage() {
       ) : tab !== 'favorites' && filtered.length === 0 ? (
         <EmptyState
           Icon={ShoppingBag}
-          title={tab === 'purchased' ? '還沒有已購品項' : '採購清單是空的'}
-          description="點右上角「新增」加入想買的品項"
+          title={search.trim() ? '找不到符合的品項' : tab === 'purchased' ? '還沒有已購品項' : '採購清單是空的'}
+          description={search.trim() ? '試試調整搜尋關鍵字' : '點右上角「新增」加入想買的品項'}
         />
       ) : tab !== 'favorites' && (
         <div className="space-y-3">
