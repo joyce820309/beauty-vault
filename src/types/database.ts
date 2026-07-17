@@ -70,6 +70,16 @@ export interface Item {
   updated_at: string
 }
 
+export interface ItemExchangeRate {
+  id: number
+  item_id: number
+  currency: string
+  rate: number
+  converted_amount: number
+  fetched_at: string
+  created_at: string
+}
+
 export interface SkinRecord {
   id: number
   recorded_at: string
@@ -118,6 +128,16 @@ export interface WishlistItem {
   image_url?: string | null
   note: string | null
   is_purchased: boolean
+  created_at: string
+}
+
+export interface WishlistExchangeRate {
+  id: number
+  wishlist_id: number
+  currency: string
+  rate: number
+  converted_amount: number
+  fetched_at: string
   created_at: string
 }
 

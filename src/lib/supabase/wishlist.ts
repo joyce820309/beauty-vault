@@ -1,5 +1,5 @@
 import { supabase } from './client'
-import type { WishlistItem } from '@/types/database'
+import type { WishlistItem, WishlistExchangeRate } from '@/types/database'
 
 export async function uploadWishlistImage(file: File): Promise<string | null> {
   const ext = file.name.split('.').pop()
@@ -48,4 +48,22 @@ export async function updateWishlistItem(id: number, data: Partial<WishlistItem>
 
 export async function deleteWishlistItem(id: number) {
   return supabase.from('wishlist').delete().eq('id', id)
+}
+
+export async function getWishlistExchangeRates(wishlistId: number) {
+  return supabase
+    .from('wishlist_exchange_rates')
+    .select('*')
+    .eq('wishlist_id', wishlistId)
+    .order('fetched_at', { ascending: false })
+}
+
+export async function addWishlistExchangeRates(
+  rows: Omit<WishlistExchangeRate, 'id' | 'created_at'>[]
+) {
+  return supabase.from('wishlist_exchange_rates').insert(rows).select()
+}
+
+export async function deleteWishlistExchangeRate(id: number) {
+  return supabase.from('wishlist_exchange_rates').delete().eq('id', id)
 }

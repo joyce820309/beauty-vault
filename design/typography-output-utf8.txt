@@ -1,0 +1,64 @@
+﻿## UI Pro Max Search Results
+**Domain:** typography | **Query:** luxury beauty bilingual app readability
+**Source:** typography.csv | **Found:** 5 results
+
+### Result 1
+- **Font Pairing Name:** Classic Elegant
+- **Category:** Serif + Sans
+- **Heading Font:** Playfair Display
+- **Body Font:** Inter
+- **Mood/Style Keywords:** elegant, luxury, sophisticated, timeless, premium, editorial
+- **Best For:** Luxury brands, fashion, spa, beauty, editorial, magazines, high-end e-commerce
+- **Google Fonts URL:** https://fonts.google.com/share?selection.family=Inter:wght@300;400;500;600;700|Playfair+Display:wght@400;500;600;700
+- **CSS Import:** @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap');
+- **Tailwind Config:** fontFamily: { serif: ['Playfair Display', 'serif'], sans: ['Inter', 'sans-serif'] }
+- **Notes:** High contrast between elegant heading and clean body. Perfect for luxury/premium.
+
+### Result 2
+- **Font Pairing Name:** Luxury Serif
+- **Category:** Serif + Sans
+- **Heading Font:** Cormorant
+- **Body Font:** Montserrat
+- **Mood/Style Keywords:** luxury, high-end, fashion, elegant, refined, premium
+- **Best For:** Fashion brands, luxury e-commerce, jewelry, high-end services
+- **Google Fonts URL:** https://fonts.google.com/share?selection.family=Cormorant:wght@400;500;600;700|Montserrat:wght@300;400;500;600;700
+- **CSS Import:** @import url('https://fonts.googleapis.com/css2?family=Cormorant:wght@400;500;600;700&family=Montserrat:wght@300;400;500;600;700&display=swap');
+- **Tailwind Config:** fontFamily: { serif: ['Cormorant', 'serif'], sans: ['Montserrat', 'sans-serif'] }
+- **Notes:** Cormorant's elegance with Montserrat's geometric precision.
+
+### Result 3
+- **Font Pairing Name:** Real Estate Luxury
+- **Category:** Serif + Sans
+- **Heading Font:** Cinzel
+- **Body Font:** Josefin Sans
+- **Mood/Style Keywords:** real estate, luxury, elegant, sophisticated, property, premium
+- **Best For:** Real estate, luxury properties, architecture, interior design
+- **Google Fonts URL:** https://fonts.google.com/share?selection.family=Cinzel:wght@400;500;600;700|Josefin+Sans:wght@300;400;500;600;700
+- **CSS Import:** @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=Josefin+Sans:wght@300;400;500;600;700&display=swap');
+- **Tailwind Config:** fontFamily: { serif: ['Cinzel', 'serif'], sans: ['Josefin Sans', 'sans-serif'] }
+- **Notes:** Cinzel's elegance for headlines. Josefin for modern body.
+
+### Result 4
+- **Font Pairing Name:** Luxury Minimalist
+- **Category:** Serif + Sans
+- **Heading Font:** Bodoni Moda
+- **Body Font:** Jost
+- **Mood/Style Keywords:** luxury, minimalist, high-end, sophisticated, refined, premium
+- **Best For:** Luxury minimalist brands, high-end fashion, premium products
+- **Google Fonts URL:** https://fonts.google.com/share?selection.family=Bodoni+Moda:wght@400;500;600;700|Jost:wght@300;400;500;600;700
+- **CSS Import:** @import url('https://fonts.googleapis.com/css2?family=Bodoni+Moda:wght@400;500;600;700&family=Jost:wght@300;400;500;600;700&display=swap');
+- **Tailwind Config:** fontFamily: { serif: ['Bodoni Moda', 'serif'], sans: ['Jost', 'sans-serif'] }
+- **Notes:** Bodoni's high contrast elegance. Jost for geometric body.
+
+### Result 5
+- **Font Pairing Name:** Korean Modern
+- **Category:** Sans + Sans
+- **Heading Font:** Noto Sans KR
+- **Body Font:** Noto Sans KR
+- **Mood/Style Keywords:** korean, modern, clean, professional, multilingual, readable
+- **Best For:** Korean sites, K-beauty, K-pop, Korean businesses, multilingual
+- **Google Fonts URL:** https://fonts.google.com/share?selection.family=Noto+Sans+KR:wght@300;400;500;700
+- **CSS Import:** @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap');
+- **Tailwind Config:** fontFamily: { sans: ['Noto Sans KR', 'sans-serif'] }
+- **Notes:** Clean Korean typography. Single font with weight variations.
+

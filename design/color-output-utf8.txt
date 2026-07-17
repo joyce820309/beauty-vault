@@ -1,0 +1,24 @@
+﻿## UI Pro Max Search Results
+**Domain:** color | **Query:** beauty ecommerce trustworthy pastel compact cards
+**Source:** colors.csv | **Found:** 1 results
+
+### Result 1
+- **Product Type:** Beauty/Spa/Wellness Service
+- **Primary:** #EC4899
+- **On Primary:** #FFFFFF
+- **Secondary:** #F9A8D4
+- **On Secondary:** #0F172A
+- **Accent:** #8B5CF6
+- **On Accent:** #FFFFFF
+- **Background:** #FDF2F8
+- **Foreground:** #831843
+- **Card:** #FFFFFF
+- **Card Foreground:** #831843
+- **Muted:** #F1EEF5
+- **Muted Foreground:** #64748B
+- **Border:** #FBCFE8
+- **Destructive:** #DC2626
+- **On Destructive:** #FFFFFF
+- **Ring:** #EC4899
+- **Notes:** Soft pink + lavender luxury
+

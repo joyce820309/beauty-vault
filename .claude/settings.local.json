@@ -10,7 +10,23 @@
       "Read(//c/Users/Gigabyte/AppData/Local/Temp/**)",
       "Bash(node -e \"console.log\\(process.version\\)\")",
       "Bash(node -e \"const pw = require\\('playwright'\\); console.log\\(typeof pw.chromium\\);\")",
-      "Bash(npx supabase *)"
+      "Bash(npx supabase *)",
+      "Skill(run)",
+      "Skill(run:*)",
+      "Bash(npx --yes playwright --version)",
+      "Bash(command -v chromium-cli)",
+      "Bash(curl -s http://localhost:5285 -o /dev/null -w \"%{http_code}\\\\n\")",
+      "Bash(node -e \"require.resolve\\('playwright'\\)\")",
+      "Bash(npm ls *)",
+      "Bash(cp /tmp/check.mjs c:/Users/Gigabyte/beautyVault/scratch-check.mjs)",
+      "Bash(cygpath -u 'C:\\\\Users\\\\Gigabyte\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-Gigabyte-beautyVault\\\\cd11bcac-61d4-49af-a6c8-cb57b19c6048\\\\scratchpad')",
+      "Bash(cp \"$\\(cygpath -u 'C:\\\\Users\\\\Gigabyte\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-Gigabyte-beautyVault\\\\cd11bcac-61d4-49af-a6c8-cb57b19c6048\\\\scratchpad'\\)/../check.mjs\")",
+      "Bash(node scratch-check.mjs)",
+      "Bash(mkdir -p \"/c/Users/Gigabyte/AppData/Local/Temp/claude/c--Users-Gigabyte-beautyVault/cd11bcac-61d4-49af-a6c8-cb57b19c6048/scratchpad\")",
+      "Bash(cp c:/Users/Gigabyte/beautyVault/scratch-check.mjs \"/c/Users/Gigabyte/AppData/Local/Temp/claude/c--Users-Gigabyte-beautyVault/cd11bcac-61d4-49af-a6c8-cb57b19c6048/scratchpad/check.mjs\")",
+      "Bash(SCRATCH=/c/Users/Gigabyte/AppData/Local/Temp/claude/c--Users-Gigabyte-beautyVault/cd11bcac-61d4-49af-a6c8-cb57b19c6048/scratchpad node scratch-check.mjs)",
+      "Bash(supabase --version)",
+      "Bash(supabase projects *)"
     ]
   }
 }

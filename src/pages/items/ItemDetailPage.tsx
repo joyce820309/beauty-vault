@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
-import { getItemById, deleteItem, updateDisposalStatus, updateItemFlag, createItem, updateDisposalWithReason, updateDisposalReason, updateIgnoreHealth } from '@/lib/supabase/items'
+import { getItemById, deleteItem, updateDisposalStatus, updateItemFlag, createItem, updateDisposalWithReason, updateDisposalReason, updateIgnoreHealth, getItemExchangeRates, addItemExchangeRates, deleteItemExchangeRate } from '@/lib/supabase/items'
 import { DisposalReasonModal } from '@/components/ui/DisposalReasonModal'
 import { QuickClassify } from '@/components/ui/QuickClassify'
 import { CollapsibleNote } from '@/components/ui/AutoTextarea'
+import { ExchangeRatePanel, ExchangeRateHistory } from '@/components/ui/ExchangeRatePanel'
 import { ExpiryBadge, SensitiveBadge, PriceBadge, DisposalBadge } from '@/components/ui/Badge'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { Lightbox } from '@/components/ui/Lightbox'
@@ -11,7 +12,7 @@ import { getExpiryLevel } from '@/utils/expiry'
 import { useToast } from '@/components/ui/Toast'
 import { format, parseISO } from 'date-fns'
 import { Eye, EyeOff, Trash2, RotateCcw, Heart, Zap, Copy, CircleCheckBig, ShieldOff } from 'lucide-react'
-import type { Item, DisposalStatus, DisposalReason } from '@/types/database'
+import type { Item, DisposalStatus, DisposalReason, ItemExchangeRate } from '@/types/database'
 function fmt(d: string | null) {
   if (!d) return '—'
   return format(parseISO(d), 'yyyy-MM-dd')
@@ -37,7 +38,30 @@ export default function ItemDetailPage() {
   const [statusUpdating, setStatusUpdating] = useState(false)
   const [flagConfirm, setFlagConfirm] = useState<'is_favorite' | 'is_dud' | null>(null)
   const [showDisposalModal, setShowDisposalModal] = useState(false)
+  const [rateHistory, setRateHistory] = useState<ItemExchangeRate[]>([])
   const { showToast } = useToast()
+
+  useEffect(() => {
+    if (!item) return
+    getItemExchangeRates(item.id).then(({ data }) => setRateHistory(data ?? []))
+  }, [item?.id])
+
+  async function handleAddRate(currency: string, rate: number, convertedAmount: number) {
+    if (!item) return
+    const { data, error } = await addItemExchangeRates([{
+      item_id: item.id,
+      currency,
+      rate,
+      converted_amount: convertedAmount,
+      fetched_at: new Date().toISOString(),
+    }])
+    if (!error && data) setRateHistory((prev) => [...data, ...prev])
+  }
+
+  async function handleDeleteRate(rateId: number) {
+    const { error } = await deleteItemExchangeRate(rateId)
+    if (!error) setRateHistory((prev) => prev.filter((h) => h.id !== rateId))
+  }
 
   async function handleFlagToggle(flag: 'is_favorite' | 'is_dud') {
     if (!item) return
@@ -317,7 +341,21 @@ export default function ItemDetailPage() {
         <Row label="製造日期" value={fmt(item.mfg_date)} />
         <Row label="有效期限" value={fmt(item.exp_date)} />
         <Row label="購入日期" value={fmt(item.purchase_date)} />
-        <Row label="購入金額" value={item.price != null ? `NT$ ${item.price.toLocaleString()}` : null} />
+        <div className="py-3 border-b border-[var(--color-border)] last:border-0">
+          <div className="flex justify-between">
+            <span className="text-sm text-[var(--color-text-muted)]">購入金額</span>
+            <span className="text-sm text-[var(--color-text)] font-medium text-right max-w-[60%]">
+              {item.price != null ? `NT$ ${item.price.toLocaleString()}` : '—'}
+            </span>
+          </div>
+          {item.price != null && (
+            <div className="mt-1.5 flex justify-end">
+              <div className="w-full">
+                <ExchangeRatePanel amount={item.price} onAdd={handleAddRate} />
+              </div>
+            </div>
+          )}
+        </div>
         {item.item_type === 'skincare' && item.volume_ml != null && (
           <Row label="容量" value={`${item.volume_ml} ml`} />
         )}
@@ -344,6 +382,13 @@ export default function ItemDetailPage() {
       {item.note && (
         <div className="mb-4">
           <CollapsibleNote text={item.note} />
+        </div>
+      )}
+
+      {/* 幣值歷史 */}
+      {rateHistory.length > 0 && (
+        <div className="mb-4">
+          <ExchangeRateHistory history={rateHistory} onDelete={handleDeleteRate} />
         </div>
       )}
 

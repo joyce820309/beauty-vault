@@ -1,5 +1,5 @@
 import { supabase } from './client'
-import type { Item } from '@/types/database'
+import type { Item, ItemExchangeRate } from '@/types/database'
 
 export async function getItems() {
   return supabase
@@ -22,6 +22,24 @@ export async function updateItem(id: number, data: Partial<Item>) {
 
 export async function deleteItem(id: number) {
   return supabase.from('items').delete().eq('id', id)
+}
+
+export async function getItemExchangeRates(itemId: number) {
+  return supabase
+    .from('item_exchange_rates')
+    .select('*')
+    .eq('item_id', itemId)
+    .order('fetched_at', { ascending: false })
+}
+
+export async function addItemExchangeRates(
+  rows: Omit<ItemExchangeRate, 'id' | 'created_at'>[]
+) {
+  return supabase.from('item_exchange_rates').insert(rows).select()
+}
+
+export async function deleteItemExchangeRate(id: number) {
+  return supabase.from('item_exchange_rates').delete().eq('id', id)
 }
 
 export async function searchItems(query: string) {

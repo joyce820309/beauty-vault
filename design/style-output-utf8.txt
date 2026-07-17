@@ -1,0 +1,94 @@
+﻿## UI Pro Max Search Results
+**Domain:** style | **Query:** mobile finance helper panel in detail page, quick compare currency conversion
+**Source:** styles.csv | **Found:** 5 results
+
+### Result 1
+- **Style Category:** Conversion-Optimized
+- **Type:** Landing Page
+- **Keywords:** Form-focused, minimalist design, single CTA focus, high contrast, urgency elements, trust signals, social proof, clear value
+- **Primary Colors:** Primary brand color, high-contrast white/light backgrounds, warning/urgency colors for time-limited offers
+- **Effects & Animation:** Hover states on CTA (color shift, slight scale), form field focus animations, loading spinner, success feedback
+- **Best For:** E-commerce product pages, free trial signups, lead generation, SaaS pricing pages, limited-time offers
+- **Light Mode ??** ??Full
+- **Dark Mode ??** ??Full
+- **Performance:** ??Excellent
+- **Accessibility:** ??WCAG AA
+- **Framework Compatibility:** Tailwind 10/10, Bootstrap 9/10
+- **Complexity:** Medium
+- **AI Prompt Keywords:** Design a conversion-optimized landing page. Use: single primary CTA, minimal distractions, trust badges, urgency elements (limited time), social proof (testimonials), clear value proposition, form above fold, progress indicators.
+- **CSS/Technical Keywords:** form with focus states, input:focus ring, button: primary color high contrast, position: sticky for CTA, max-width: 600px for form, loading spinner, success/error states
+- **Implementation Checklist:** ??Single primary CTA visible, ??Form fields minimal (3-5), ??Trust badges present, ??Social proof above fold, ??Mobile form optimized, ??Loading states implemented, ??A/B test ready
+- **Design System Variables:** --cta-color: high contrast primary, --form-max-width: 600px, --input-height: 48px, --focus-ring: 3px solid accent, --success-color: #22C55E, --error-color: #EF4444
+
+### Result 2
+- **Style Category:** Enterprise SaaS (Mobile)
+- **Type:** Mobile
+- **Keywords:** enterprise, saas, b2b, professional, indigo, violet, gradient, polished, trustworthy, clean, approachable, spring, haptic
+- **Primary Colors:** Indigo #4F46E5, Violet #7C3AED
+- **Effects & Animation:** Indigo?iolet gradient primary CTAs + active tab highlights, colored card shadows rgba(79,70,229,0.08), pill buttons or 12pt radius, full-width CTA at screen bottom, spring press scale 0.97, floating label inputs with animated focus border, skeletal loading pulses (Indigo/Slate tint), Bottom Sheets ...
+- **Best For:** B2B backend management, productivity tools, government and finance mobile apps, SaaS companion apps, enterprise dashboards
+- **Light Mode ??** ??Light
+- **Dark Mode ??** ??Dark-ready (token inversion)
+- **Performance:** ??Performant
+- **Accessibility:** ??WCAG AA
+- **Framework Compatibility:** React Native 10/10, Reanimated 10/10, NativeWind 9/10
+- **Complexity:** High
+- **AI Prompt Keywords:** Design a Modern Enterprise SaaS mobile app. Background #F8FAFC, surfaces #FFFFFF, primary #4F46E5 (Indigo), secondary #7C3AED (Violet). Typography: Plus Jakarta Sans, ExtraBold 800 for screen titles, Bold 700 for section headers, SemiBold 600 for buttons, Regular 400 for body. Line height 1.1??.2 fo...
+- **CSS/Technical Keywords:** backgroundColor: '#F8FAFC', surfaceBg: '#FFFFFF', textPrimary: '#0F172A', textMuted: '#64748B', primary: '#4F46E5', secondary: '#7C3AED', success: '#10B981', border: '#E2E8F0', radiusCard: 16, radiusButton: 999, radiusInput: 8, shadowCard: 'rgba(79,70,229,0.08)', gradientPrimary: ['#4F46E5', '#7C3AE...
+- **Implementation Checklist:** ??Background #F8FAFC applied, ??Indigo?iolet gradient on primary CTA, ??Colored card shadows (not gray), ??Plus Jakarta Sans typography, ??Floating label inputs with Indigo focus, ??Scale 0.97 press with haptic Medium, ??Bottom Tab Navigation implemented, ??Safe Area strict compliance, ??Skeletal l...
+- **Design System Variables:** --bg: #F8FAFC, --surface: #FFFFFF, --text: #0F172A, --muted: #64748B, --primary: #4F46E5, --secondary: #7C3AED, --success: #10B981, --border: #E2E8F0, --radius-card: 16px, --radius-pill: 999px, --radius-input: 8px, --shadow-card: rgba(79,70,229,0.08), --font: Plus Jakarta Sans
+
+### Result 3
+- **Style Category:** Social Proof-Focused
+- **Type:** Landing Page
+- **Keywords:** Testimonials prominent, client logos displayed, case studies sections, reviews/ratings, user avatars, success metrics, credibility markers
+- **Primary Colors:** Primary brand, trust colors (blue), success/growth colors (green), neutral backgrounds
+- **Effects & Animation:** Testimonial carousel animations, logo grid fade-in, stat counter animations (number count-up), review star ratings
+- **Best For:** B2B SaaS, professional services, premium products, e-commerce conversion pages, established brands
+- **Light Mode ??** ??Full
+- **Dark Mode ??** ??Full
+- **Performance:** ??Good
+- **Accessibility:** ??WCAG AA
+- **Framework Compatibility:** Tailwind 10/10, Bootstrap 9/10
+- **Complexity:** Medium
+- **AI Prompt Keywords:** Design a social proof landing page. Use: testimonials with photos, client logos grid, case study cards, review ratings (stars), user count metrics, success stories, trust indicators, before/after comparisons.
+- **CSS/Technical Keywords:** testimonial cards with avatar, logo grid (grayscale filter), star rating SVGs, counter animations (count-up), blockquote styling, carousel for testimonials, metric cards
+- **Implementation Checklist:** ??Testimonials with real photos, ??Logo grid 6-12 logos, ??Star ratings accessible, ??Metrics animated on scroll, ??Case studies linked, ??Mobile carousel works
+- **Design System Variables:** --avatar-size: 64px, --logo-height: 40px, --star-color: #FBBF24, --metric-font-size: 3rem, --testimonial-bg: #F9FAFB, --blockquote-border: 4px solid accent
+
+### Result 4
+- **Style Category:** User Behavior Analytics
+- **Type:** BI/Analytics
+- **Keywords:** Funnel visualization, user flow diagrams, conversion tracking, engagement metrics, user journey mapping, cohort analysis
+- **Primary Colors:** Funnel stage colors: high engagement (green), drop-off (red), conversion (blue), user flow arrows (grey)
+- **Effects & Animation:** Funnel animation (fill-down), flow diagram animations (connection draw), conversion pulse, engagement bar fill
+- **Best For:** Conversion funnel analysis, user journey tracking, engagement analytics, cohort analysis, retention tracking
+- **Light Mode ??** ??Full
+- **Dark Mode ??** ??Full
+- **Performance:** ??Good
+- **Accessibility:** ??WCAG AA
+- **Framework Compatibility:** Recharts 9/10, Chart.js 9/10, D3.js 10/10
+- **Complexity:** Medium
+- **AI Prompt Keywords:** Design a user behavior analytics dashboard. Use: funnel visualization, user flow diagrams (Sankey), conversion metrics, engagement heatmaps, cohort tables, retention curves, session replay indicators.
+- **CSS/Technical Keywords:** SVG funnel with gradients, Sankey diagram library, percentage labels, cohort grid cells, retention chart (line/area), click heatmap overlay, session timeline
+- **Implementation Checklist:** ??Funnel stages clear, ??Flow diagram readable, ??Conversions calculated, ??Cohorts comparable, ??Retention trends visible, ??Privacy compliant
+- **Design System Variables:** --funnel-width: 100%, --stage-colors: gradient, --flow-opacity: 0.6, --cohort-cell-size: 40px, --retention-line-color: #3B82F6, --engagement-scale: 5 levels
+
+### Result 5
+- **Style Category:** 3D & Hyperrealism
+- **Type:** General
+- **Keywords:** Depth, realistic textures, 3D models, spatial navigation, tactile, skeuomorphic elements, rich detail, immersive
+- **Primary Colors:** Deep Navy #001F3F, Forest Green #228B22, Burgundy #800020, Gold #FFD700, Silver #C0C0C0
+- **Effects & Animation:** WebGL/Three.js 3D, realistic shadows (layers), physics lighting, parallax (3-5 layers), smooth 3D (300-400ms)
+- **Best For:** Gaming, product showcase, immersive experiences, high-end e-commerce, architectural viz, VR/AR
+- **Light Mode ??** ??Partial
+- **Dark Mode ??** ??Partial
+- **Performance:** ??Poor
+- **Accessibility:** ??Not accessible
+- **Framework Compatibility:** Three.js 10/10, R3F 10/10, Babylon.js 10/10
+- **Complexity:** High
+- **AI Prompt Keywords:** Build an immersive 3D interface using realistic textures, 3D models (Three.js/Babylon.js), complex shadows, realistic lighting, parallax scrolling (3-5 layers), physics-based motion. Include skeuomorphic elements with tactile detail.
+- **CSS/Technical Keywords:** transform: translate3d, perspective: 1000px, WebGL canvas, Three.js/Babylon.js library, box-shadow: complex multi-layer, background: complex gradients, filter: drop-shadow()
+- **Implementation Checklist:** ??WebGL/Three.js integrated, ??3D models loaded, ??Parallax 3-5 layers, ??Realistic lighting verified, ??Complex shadows rendered, ??Physics animation smooth 300-400ms
+- **Design System Variables:** --perspective: 1000px, --parallax-layers: 5, --lighting-intensity: realistic, --shadow-depth: 20-40%, --animation-duration: 300-400ms
+

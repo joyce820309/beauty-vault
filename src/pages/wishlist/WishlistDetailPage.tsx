@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ExternalLink, Pencil } from 'lucide-react'
-import { getWishlistItem, updateWishlistItem, uploadWishlistImage } from '@/lib/supabase/wishlist'
+import { getWishlistItem, updateWishlistItem, uploadWishlistImage, getWishlistExchangeRates, addWishlistExchangeRates, deleteWishlistExchangeRate } from '@/lib/supabase/wishlist'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { CollapsibleNote } from '@/components/ui/AutoTextarea'
+import { ExchangeRatePanel, ExchangeRateHistory } from '@/components/ui/ExchangeRatePanel'
 import { WishForm, type WishFormData } from './WishForm'
 import { useToast } from '@/components/ui/Toast'
-import type { WishlistItem } from '@/types/database'
+import type { WishlistItem, WishlistExchangeRate } from '@/types/database'
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -34,6 +35,7 @@ export default function WishlistDetailPage() {
   const [item, setItem] = useState<WishlistItem | null>(null)
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState(false)
+  const [rateHistory, setRateHistory] = useState<WishlistExchangeRate[]>([])
 
   useEffect(() => {
     getWishlistItem(Number(id)).then(({ data }) => {
@@ -41,6 +43,28 @@ export default function WishlistDetailPage() {
       setLoading(false)
     })
   }, [id])
+
+  useEffect(() => {
+    if (!item) return
+    getWishlistExchangeRates(item.id).then(({ data }) => setRateHistory(data ?? []))
+  }, [item?.id])
+
+  async function handleAddRate(currency: string, rate: number, convertedAmount: number) {
+    if (!item) return
+    const { data, error } = await addWishlistExchangeRates([{
+      wishlist_id: item.id,
+      currency,
+      rate,
+      converted_amount: convertedAmount,
+      fetched_at: new Date().toISOString(),
+    }])
+    if (!error && data) setRateHistory((prev) => [...data, ...prev])
+  }
+
+  async function handleDeleteRate(rateId: number) {
+    const { error } = await deleteWishlistExchangeRate(rateId)
+    if (!error) setRateHistory((prev) => prev.filter((h) => h.id !== rateId))
+  }
 
   async function handleEdit(data: WishFormData, imageFile: File | null, imageUrl: string | null) {
     if (!item) return
@@ -170,7 +194,19 @@ export default function WishlistDetailPage() {
         <Row label="色號" value={item.shade ? `#${item.shade}` : null} />
         <Row label="品項類型" value={itemTypeLabel(item.item_type)} />
         <Row label="價格類型" value={priceTypeLabel(item.price_type)} />
-        <Row label="預算" value={price} />
+        <div className="py-3 border-b border-[var(--color-border)] last:border-0">
+          <div className="flex justify-between">
+            <span className="text-sm text-[var(--color-text-muted)]">預算</span>
+            <span className="text-sm text-[var(--color-text)] font-medium text-right max-w-[60%]">{price || '—'}</span>
+          </div>
+          {item.price_type !== 'gift' && item.price != null && item.price > 0 && (
+            <div className="mt-1.5 flex justify-end">
+              <div className="w-full">
+                <ExchangeRatePanel amount={item.price} onAdd={handleAddRate} />
+              </div>
+            </div>
+          )}
+        </div>
         <Row
           label="參考網站"
           value={item.url ? (
@@ -190,6 +226,12 @@ export default function WishlistDetailPage() {
       {item.note && (
         <div className="mb-4">
           <CollapsibleNote text={item.note} />
+        </div>
+      )}
+
+      {rateHistory.length > 0 && (
+        <div className="mb-4">
+          <ExchangeRateHistory history={rateHistory} onDelete={handleDeleteRate} />
         </div>
       )}
 
