@@ -27,7 +27,7 @@ interface DatePickerProps {
 
 const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六']
 const THIS_YEAR = new Date().getFullYear()
-const YEAR_OPTIONS = Array.from({ length: 30 }, (_, i) => THIS_YEAR - 20 + i)
+const YEAR_OPTIONS = Array.from({ length: 30 }, (_, i) => THIS_YEAR + 9 - i)
 const MONTH_OPTIONS = Array.from({ length: 12 }, (_, i) => ({ value: i, label: `${i + 1} 月` }))
 
 export function DatePicker({ value, onChange, label, required, placeholder = '選擇日期', error, disabled, shortcuts }: DatePickerProps) {
