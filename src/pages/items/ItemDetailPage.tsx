@@ -439,7 +439,12 @@ export default function ItemDetailPage() {
         <Row
           label="購入金額"
           value={
-            item.price != null ? `NT$ ${item.price.toLocaleString()}` : null
+            item.price != null
+              ? `NT$ ${item.price.toLocaleString()}` +
+                (item.foreign_price != null && item.currency
+                  ? ` (${item.currency} ${item.foreign_price.toLocaleString()})`
+                  : "")
+              : null
           }
         />
         {item.item_type === "skincare" && item.volume_ml != null && (

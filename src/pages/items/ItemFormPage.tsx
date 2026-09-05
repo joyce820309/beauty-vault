@@ -11,7 +11,7 @@ import { useComboboxOptions } from "@/hooks/useComboboxOptions";
 import { createItem, getItemById, updateItem } from "@/lib/supabase/items";
 import { supabase } from "@/lib/supabase/client";
 import { SENSITIVE_SKIN_OPTIONS } from "@/utils/categories";
-import { Camera } from "lucide-react";
+import { Camera, RefreshCw } from "lucide-react";
 import Toggle from "@/components/ui/Toggle";
 import { useToast } from "@/components/ui/Toast";
 import { addCustomOption } from "@/lib/customOptions";
@@ -137,6 +137,7 @@ export default function ItemFormPage() {
   const [foreignAmount, setForeignAmount] = useState("");
   const [rate, setRate] = useState("");
   const [selectedCurrency, setSelectedCurrency] = useState("");
+  const [fetchingRate, setFetchingRate] = useState(false);
 
   const {
     register,
@@ -194,6 +195,23 @@ export default function ItemFormPage() {
       if (data.image_url) setImagePreview(data.image_url);
     });
   }, [id, isEdit, setValue]);
+
+  async function fetchTodayRate() {
+    if (!selectedCurrency || fetchingRate) return;
+    setFetchingRate(true);
+    try {
+      const res = await fetch("https://open.er-api.com/v6/latest/TWD");
+      if (!res.ok) throw new Error("network");
+      const json = await res.json();
+      const twdPerUnit = json.rates?.[selectedCurrency];
+      if (json.result !== "success" || !twdPerUnit) throw new Error("bad response");
+      setRate(String(parseFloat((1 / twdPerUnit).toFixed(4))));
+    } catch {
+      showToast("無法取得今日匯率，請稍後再試");
+    } finally {
+      setFetchingRate(false);
+    }
+  }
 
   function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -684,19 +702,34 @@ export default function ItemFormPage() {
                       setForeignAmount(toHalfWidth(e.target.value))
                     }
                     placeholder="外幣金額"
-                    className="flex-1 px-3 py-2 rounded-xl border border-[var(--color-border)] text-sm bg-[var(--color-bg-card)] text-[var(--color-text)] focus:outline-none"
+                    className="flex-[7] min-w-0 px-3 py-2 rounded-xl border border-[var(--color-border)] text-sm bg-[var(--color-bg-card)] text-[var(--color-text)] focus:outline-none"
                   />
                   <span className="text-xs text-[var(--color-text-muted)]">
                     ×
                   </span>
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    value={rate}
-                    onChange={(e) => setRate(toHalfWidth(e.target.value))}
-                    placeholder="匯率"
-                    className="w-20 px-3 py-2 rounded-xl border border-[var(--color-border)] text-sm bg-[var(--color-bg-card)] text-[var(--color-text)] focus:outline-none"
-                  />
+                  <div className="relative flex-[3] min-w-0">
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={rate}
+                      onChange={(e) => setRate(toHalfWidth(e.target.value))}
+                      placeholder="匯率"
+                      className="w-full pl-3 pr-8 py-2 rounded-xl border border-[var(--color-border)] text-sm bg-[var(--color-bg-card)] text-[var(--color-text)] focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={fetchTodayRate}
+                      disabled={!selectedCurrency || fetchingRate}
+                      title="取得今日匯率"
+                      className="absolute right-1 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center rounded-full text-[var(--color-primary)] hover:bg-[var(--color-primary-light)] transition-colors min-h-0 min-w-0 disabled:opacity-30"
+                    >
+                      <RefreshCw
+                        size={12}
+                        strokeWidth={2}
+                        className={fetchingRate ? "animate-spin" : ""}
+                      />
+                    </button>
+                  </div>
                   <button
                     type="button"
                     disabled={!foreignAmount || !rate}
@@ -710,8 +743,6 @@ export default function ItemFormPage() {
                       if (selectedCurrency)
                         setValue("currency", selectedCurrency);
                       setShowCurrencyPanel(false);
-                      setForeignAmount("");
-                      setSelectedCurrency("");
                     }}
                     className="px-3 py-2 rounded-xl bg-[var(--color-primary)] text-white text-xs font-medium min-h-0 disabled:opacity-40"
                   >
@@ -1047,6 +1078,8 @@ export default function ItemFormPage() {
                     item_type: "makeup",
                     sensitive_skin_ok: "untested",
                     price_type: "normal",
+                    shade_zh: "",
+                    shade_en: "",
                   });
                   setImageFile(null);
                   setImagePreview(null);

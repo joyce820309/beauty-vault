@@ -30,6 +30,43 @@ const THIS_YEAR = new Date().getFullYear()
 const YEAR_OPTIONS = Array.from({ length: 30 }, (_, i) => THIS_YEAR + 9 - i)
 const MONTH_OPTIONS = Array.from({ length: 12 }, (_, i) => ({ value: i, label: `${i + 1} 月` }))
 
+// 全形數字／分隔符號（注音輸入法）→ 半形，方便手動輸入日期
+function toHalfWidth(str: string): string {
+  return str
+    .replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0))
+    .replace(/[／]/g, '/')
+    .replace(/[．。]/g, '.')
+    .replace(/[－—]/g, '-')
+}
+
+// 允許 yyyy-MM-dd / yyyy/M/d / yyyy.MM.dd / yyyyMMdd 等手動輸入格式
+function parseTypedDate(text: string): Date | null {
+  const trimmed = text.trim()
+  if (!trimmed) return null
+
+  const parts = trimmed.split(/[^0-9]+/).filter(Boolean)
+  let y: string, m: string, d: string
+  if (parts.length === 3) {
+    [y, m, d] = parts
+  } else if (parts.length === 1 && parts[0].length === 8) {
+    y = parts[0].slice(0, 4)
+    m = parts[0].slice(4, 6)
+    d = parts[0].slice(6, 8)
+  } else {
+    return null
+  }
+
+  if (y.length !== 4) return null
+  m = m.padStart(2, '0')
+  d = d.padStart(2, '0')
+  if (m.length !== 2 || d.length !== 2) return null
+
+  const iso = `${y}-${m}-${d}`
+  const parsed = parse(iso, 'yyyy-MM-dd', new Date())
+  if (!isValid(parsed) || format(parsed, 'yyyy-MM-dd') !== iso) return null
+  return parsed
+}
+
 export function DatePicker({ value, onChange, label, required, placeholder = '選擇日期', error, disabled, shortcuts }: DatePickerProps) {
   const parsed = value ? parse(value, 'yyyy-MM-dd', new Date()) : null
   const selected = parsed && isValid(parsed) ? parsed : null
@@ -37,11 +74,42 @@ export function DatePicker({ value, onChange, label, required, placeholder = '�
   const [open, setOpen] = useState(false)
   const [view, setView] = useState<Date>(selected ?? new Date())
   const [headerMode, setHeaderMode] = useState<'calendar' | 'year' | 'month'>('calendar')
+  // null = 未在編輯，顯示美化格式；非 null = 使用者正在手動輸入的原始文字
+  const [editText, setEditTextState] = useState<string | null>(null)
+  const [localError, setLocalError] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const editTextRef = useRef<string | null>(null)
+
+  function setEditText(v: string | null) {
+    editTextRef.current = v
+    setEditTextState(v)
+  }
+
+  function commitEdit() {
+    const text = editTextRef.current
+    if (text === null) return
+    const trimmed = text.trim()
+    if (trimmed === '') {
+      onChange('')
+      setEditText(null)
+      setLocalError(false)
+      return
+    }
+    const parsedDate = parseTypedDate(trimmed)
+    if (parsedDate) {
+      onChange(format(parsedDate, 'yyyy-MM-dd'))
+      setEditText(null)
+      setLocalError(false)
+    } else {
+      setLocalError(true)
+    }
+  }
 
   useEffect(() => {
     function onDown(e: MouseEvent) {
       if (!containerRef.current?.contains(e.target as Node)) {
+        commitEdit()
         setOpen(false)
         setHeaderMode('calendar')
       }
@@ -57,6 +125,8 @@ export function DatePicker({ value, onChange, label, required, placeholder = '�
 
   function selectDate(day: Date) {
     onChange(format(day, 'yyyy-MM-dd'))
+    setEditText(null)
+    setLocalError(false)
     setOpen(false)
     setHeaderMode('calendar')
   }
@@ -64,6 +134,48 @@ export function DatePicker({ value, onChange, label, required, placeholder = '�
   function clear(e: React.MouseEvent) {
     e.stopPropagation()
     onChange('')
+    setEditText(null)
+    setLocalError(false)
+  }
+
+  function handleFocus(e: React.FocusEvent<HTMLInputElement>) {
+    setOpen(true)
+    if (editTextRef.current === null) setEditText(value || '')
+    e.target.select()
+  }
+
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    setLocalError(false)
+    setEditText(toHalfWidth(e.target.value))
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      commitEdit()
+      setOpen(false)
+      setHeaderMode('calendar')
+    } else if (e.key === 'Escape') {
+      setEditText(null)
+      setLocalError(false)
+      setOpen(false)
+      inputRef.current?.blur()
+    }
+  }
+
+  // Tab 切到表單其他欄位時收起面板；焦點落在面板內（如切換年月）則不受影響
+  function handleBlur(e: React.FocusEvent<HTMLInputElement>) {
+    commitEdit()
+    const next = e.relatedTarget as Node | null
+    if (next && !containerRef.current?.contains(next)) {
+      setOpen(false)
+      setHeaderMode('calendar')
+    }
+  }
+
+  function handleWrapperClick(e: React.MouseEvent<HTMLDivElement>) {
+    if (disabled) return
+    if (e.target === e.currentTarget) inputRef.current?.focus()
   }
 
   // 月曆的日期格
@@ -73,6 +185,7 @@ export function DatePicker({ value, onChange, label, required, placeholder = '�
   const days = eachDayOfInterval({ start: calStart, end: calEnd })
 
   const displayValue = selected ? format(selected, 'yyyy 年 M 月 d 日', { locale: zhTW }) : ''
+  const showError = localError || !!error
 
   return (
     <div ref={containerRef} className="relative">
@@ -83,27 +196,43 @@ export function DatePicker({ value, onChange, label, required, placeholder = '�
         </label>
       )}
 
-      {/* Trigger */}
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={() => !disabled && setOpen((v) => !v)}
+      {/* Trigger（可點開日曆，也可直接手動輸入） */}
+      <div
+        onClick={handleWrapperClick}
         className={[
           'w-full flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm text-left',
           'bg-[var(--color-bg-card)] transition-all duration-150',
           open
             ? 'border-[var(--color-primary)] shadow-[0_0_0_3px_var(--color-focus-ring)]'
-            : error
+            : showError
             ? 'border-red-400'
             : 'border-[var(--color-border)] hover:border-[var(--color-primary)]/60',
-          disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer',
+          disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-text',
         ].join(' ')}
       >
-        <CalendarDays size={15} strokeWidth={1.5} className="text-[var(--color-text-muted)] flex-shrink-0" />
-        <span className={`flex-1 ${displayValue ? 'text-[var(--color-text)]' : 'text-[var(--color-text-muted)]'}`}>
-          {displayValue || placeholder}
-        </span>
-        {selected && (
+        <button
+          type="button"
+          tabIndex={-1}
+          disabled={disabled}
+          onClick={() => !disabled && setOpen((v) => !v)}
+          className="min-h-0 min-w-0 flex-shrink-0"
+        >
+          <CalendarDays size={15} strokeWidth={1.5} className="text-[var(--color-text-muted)]" />
+        </button>
+        <input
+          ref={inputRef}
+          type="text"
+          inputMode="numeric"
+          disabled={disabled}
+          value={editText ?? displayValue}
+          onFocus={handleFocus}
+          onChange={handleChange}
+          onBlur={handleBlur}
+          onKeyDown={handleKeyDown}
+          placeholder={editText !== null ? 'yyyy-MM-dd' : placeholder}
+          className="flex-1 min-w-0 bg-transparent outline-none text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] disabled:cursor-not-allowed"
+        />
+        {selected && !editText && (
           <span
             role="button"
             onMouseDown={clear}
@@ -112,14 +241,26 @@ export function DatePicker({ value, onChange, label, required, placeholder = '�
             <X size={13} strokeWidth={2} />
           </span>
         )}
-        <ChevronDown
-          size={14}
-          strokeWidth={1.5}
-          className={`text-[var(--color-text-muted)] transition-transform duration-200 flex-shrink-0 ${open ? 'rotate-180' : ''}`}
-        />
-      </button>
+        <button
+          type="button"
+          tabIndex={-1}
+          disabled={disabled}
+          onClick={() => !disabled && setOpen((v) => !v)}
+          className="min-h-0 min-w-0 flex-shrink-0"
+        >
+          <ChevronDown
+            size={14}
+            strokeWidth={1.5}
+            className={`text-[var(--color-text-muted)] transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+          />
+        </button>
+      </div>
 
-      {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
+      {localError ? (
+        <p className="text-xs text-red-500 mt-1">日期格式不正確，請輸入例如 2028-09-01</p>
+      ) : error ? (
+        <p className="text-xs text-red-500 mt-1">{error}</p>
+      ) : null}
 
       {/* Calendar panel */}
       {open && (

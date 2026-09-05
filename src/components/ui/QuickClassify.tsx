@@ -8,9 +8,10 @@ import type { Item, ItemType } from '@/types/database'
 interface Props {
   item: Item
   onUpdated: (patch: Partial<Item>) => void
+  onOpenChange?: (open: boolean) => void
 }
 
-export function QuickClassify({ item, onUpdated }: Props) {
+export function QuickClassify({ item, onUpdated, onOpenChange }: Props) {
   const {
     makeupCategories, skincareCategories,
     makeupParents, skincareParents,
@@ -35,6 +36,14 @@ export function QuickClassify({ item, onUpdated }: Props) {
 
   // 開關下拉時重置游標
   useEffect(() => { setActiveIndex(-1) }, [open])
+
+  useEffect(() => {
+    onOpenChange?.(open)
+  }, [open, onOpenChange])
+
+  useEffect(() => {
+    return () => onOpenChange?.(false)
+  }, [onOpenChange])
 
   // 讓 active 項目捲動進視窗
   useEffect(() => {

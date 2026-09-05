@@ -22,7 +22,6 @@ const navGroups = [
       { to: "/", label: "首頁", Icon: Home },
       { to: "/items", label: "品項管理", Icon: Package },
       { to: "/expiry", label: "即期管理", Icon: CalendarClock },
-      { to: "/search", label: "搜尋", Icon: Search },
       { to: "/stats", label: "統計圖表", Icon: BarChart2 },
     ],
   },
