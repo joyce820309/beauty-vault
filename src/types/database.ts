@@ -58,6 +58,7 @@ export interface Item {
   disposal_reason: DisposalReason | null
   price_type: PriceType | null
   original_price: number | null
+  foreign_price: number | null
   currency: string | null
   fragrance: 'strong' | 'mild' | 'none' | null
   is_dud: boolean | null

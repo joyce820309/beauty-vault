@@ -1,176 +1,213 @@
-import { useEffect, useState } from 'react'
-import { useNavigate, useParams, Link } from 'react-router-dom'
-import { getItemById, deleteItem, updateDisposalStatus, updateItemFlag, createItem, updateDisposalWithReason, updateDisposalReason, updateIgnoreHealth, getItemExchangeRates, addItemExchangeRates, deleteItemExchangeRate } from '@/lib/supabase/items'
-import { DisposalReasonModal } from '@/components/ui/DisposalReasonModal'
-import { QuickClassify } from '@/components/ui/QuickClassify'
-import { CollapsibleNote } from '@/components/ui/AutoTextarea'
-import { ExchangeRatePanel, ExchangeRateHistory } from '@/components/ui/ExchangeRatePanel'
-import { ExpiryBadge, SensitiveBadge, PriceBadge, DisposalBadge } from '@/components/ui/Badge'
-import { Skeleton } from '@/components/ui/Skeleton'
-import { Lightbox } from '@/components/ui/Lightbox'
-import { getExpiryLevel } from '@/utils/expiry'
-import { useToast } from '@/components/ui/Toast'
-import { format, parseISO } from 'date-fns'
-import { Eye, EyeOff, Trash2, RotateCcw, Heart, Zap, Copy, CircleCheckBig, ShieldOff } from 'lucide-react'
-import type { Item, DisposalStatus, DisposalReason, ItemExchangeRate } from '@/types/database'
+import { useEffect, useState } from "react";
+import { useNavigate, useParams, Link } from "react-router-dom";
+import {
+  getItemById,
+  deleteItem,
+  updateDisposalStatus,
+  updateItemFlag,
+  createItem,
+  updateDisposalWithReason,
+  updateDisposalReason,
+  updateIgnoreHealth,
+} from "@/lib/supabase/items";
+import { DisposalReasonModal } from "@/components/ui/DisposalReasonModal";
+import { QuickClassify } from "@/components/ui/QuickClassify";
+import { NoteContent } from "@/components/ui/AutoTextarea";
+import {
+  ExpiryBadge,
+  SensitiveBadge,
+  PriceBadge,
+  DisposalBadge,
+} from "@/components/ui/Badge";
+import { Skeleton } from "@/components/ui/Skeleton";
+import { Lightbox } from "@/components/ui/Lightbox";
+import { getExpiryLevel } from "@/utils/expiry";
+import { useToast } from "@/components/ui/Toast";
+import { format, parseISO } from "date-fns";
+import {
+  Eye,
+  EyeOff,
+  Trash2,
+  RotateCcw,
+  Heart,
+  Zap,
+  Copy,
+  CircleCheckBig,
+  ShieldOff,
+} from "lucide-react";
+import type { Item, DisposalStatus, DisposalReason } from "@/types/database";
 function fmt(d: string | null) {
-  if (!d) return '—'
-  return format(parseISO(d), 'yyyy-MM-dd')
+  if (!d) return "—";
+  return format(parseISO(d), "yyyy-MM-dd");
 }
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex justify-between py-3 border-b border-[var(--color-border)] last:border-0">
       <span className="text-sm text-[var(--color-text-muted)]">{label}</span>
-      <span className="text-sm text-[var(--color-text)] font-medium text-right max-w-[60%]">{value || '—'}</span>
+      <span className="text-sm text-[var(--color-text)] font-medium text-right max-w-[60%]">
+        {value || "—"}
+      </span>
     </div>
-  )
+  );
 }
 
 export default function ItemDetailPage() {
-  const { id } = useParams()
-  const navigate = useNavigate()
-  const [item, setItem] = useState<Item | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [deleting, setDeleting] = useState(false)
-  const [duplicating, setDuplicating] = useState(false)
-  const [lightboxOpen, setLightboxOpen] = useState(false)
-  const [statusUpdating, setStatusUpdating] = useState(false)
-  const [flagConfirm, setFlagConfirm] = useState<'is_favorite' | 'is_dud' | null>(null)
-  const [showDisposalModal, setShowDisposalModal] = useState(false)
-  const [rateHistory, setRateHistory] = useState<ItemExchangeRate[]>([])
-  const { showToast } = useToast()
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const [item, setItem] = useState<Item | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState(false);
+  const [duplicating, setDuplicating] = useState(false);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [statusUpdating, setStatusUpdating] = useState(false);
+  const [flagConfirm, setFlagConfirm] = useState<
+    "is_favorite" | "is_dud" | null
+  >(null);
+  const [showDisposalModal, setShowDisposalModal] = useState(false);
+  const { showToast } = useToast();
 
-  useEffect(() => {
-    if (!item) return
-    getItemExchangeRates(item.id).then(({ data }) => setRateHistory(data ?? []))
-  }, [item?.id])
-
-  async function handleAddRate(currency: string, rate: number, convertedAmount: number) {
-    if (!item) return
-    const { data, error } = await addItemExchangeRates([{
-      item_id: item.id,
-      currency,
-      rate,
-      converted_amount: convertedAmount,
-      fetched_at: new Date().toISOString(),
-    }])
-    if (!error && data) setRateHistory((prev) => [...data, ...prev])
-  }
-
-  async function handleDeleteRate(rateId: number) {
-    const { error } = await deleteItemExchangeRate(rateId)
-    if (!error) setRateHistory((prev) => prev.filter((h) => h.id !== rateId))
-  }
-
-  async function handleFlagToggle(flag: 'is_favorite' | 'is_dud') {
-    if (!item) return
-    const currentVal = flag === 'is_favorite' ? !!item.is_favorite : !!item.is_dud
+  async function handleFlagToggle(flag: "is_favorite" | "is_dud") {
+    if (!item) return;
+    const currentVal =
+      flag === "is_favorite" ? !!item.is_favorite : !!item.is_dud;
     if (currentVal) {
-      setFlagConfirm(flag)
-      return
+      setFlagConfirm(flag);
+      return;
     }
-    const { error } = await updateItemFlag(item.id, flag, true)
-    if (error) { showToast('更新失敗', 'error'); return }
+    const { error } = await updateItemFlag(item.id, flag, true);
+    if (error) {
+      showToast("更新失敗", "error");
+      return;
+    }
     setItem({
       ...item,
-      is_favorite: flag === 'is_favorite' ? true : false,
-      is_dud: flag === 'is_dud' ? true : false,
-    })
-    showToast(flag === 'is_favorite' ? '已加入最愛' : '已標記為雷品')
+      is_favorite: flag === "is_favorite" ? true : false,
+      is_dud: flag === "is_dud" ? true : false,
+    });
+    showToast(flag === "is_favorite" ? "已加入最愛" : "已標記為雷品");
   }
 
   async function confirmFlagOff() {
-    if (!item || !flagConfirm) return
-    const { error } = await updateItemFlag(item.id, flagConfirm, false)
-    if (error) { showToast('更新失敗', 'error'); return }
-    setItem({ ...item, [flagConfirm]: false })
-    showToast(flagConfirm === 'is_favorite' ? '已取消最愛' : '已取消雷品')
-    setFlagConfirm(null)
+    if (!item || !flagConfirm) return;
+    const { error } = await updateItemFlag(item.id, flagConfirm, false);
+    if (error) {
+      showToast("更新失敗", "error");
+      return;
+    }
+    setItem({ ...item, [flagConfirm]: false });
+    showToast(flagConfirm === "is_favorite" ? "已取消最愛" : "已取消雷品");
+    setFlagConfirm(null);
   }
 
   useEffect(() => {
     getItemById(Number(id)).then(({ data }) => {
-      setItem(data)
-      setLoading(false)
-    })
-  }, [id])
+      setItem(data);
+      setLoading(false);
+    });
+  }, [id]);
 
   async function handleStatusChange(next: DisposalStatus) {
-    if (!item) return
-    setStatusUpdating(true)
-    const { error } = await updateDisposalStatus(item.id, next)
+    if (!item) return;
+    setStatusUpdating(true);
+    const { error } = await updateDisposalStatus(item.id, next);
     if (error) {
-      showToast('更新失敗', 'error')
+      showToast("更新失敗", "error");
     } else {
-      setItem({ ...item, disposal_status: next, disposal_reason: next !== 'disposed' ? null : item.disposal_reason })
-      const msg = next === 'watching' ? '已標記為觀察中'
-        : next === 'disposed' ? '已標記為已丟棄'
-        : '已恢復為待處理'
-      showToast(msg)
+      setItem({
+        ...item,
+        disposal_status: next,
+        disposal_reason: next !== "disposed" ? null : item.disposal_reason,
+      });
+      const msg =
+        next === "watching"
+          ? "已標記為觀察中"
+          : next === "disposed"
+            ? "已標記為已丟棄"
+            : "已恢復為待處理";
+      showToast(msg);
     }
-    setStatusUpdating(false)
+    setStatusUpdating(false);
   }
 
   async function handleDispose(reason: DisposalReason) {
-    if (!item) return
-    setStatusUpdating(true)
-    const { error } = await updateDisposalWithReason(item.id, reason)
-    if (error) { showToast('更新失敗', 'error') }
-    else {
-      setItem({ ...item, disposal_status: 'disposed', disposal_reason: reason })
-      showToast(reason === 'finished' ? '已記錄為用完 ✅' : '已記錄為提早丟棄')
+    if (!item) return;
+    setStatusUpdating(true);
+    const { error } = await updateDisposalWithReason(item.id, reason);
+    if (error) {
+      showToast("更新失敗", "error");
+    } else {
+      setItem({
+        ...item,
+        disposal_status: "disposed",
+        disposal_reason: reason,
+      });
+      showToast(reason === "finished" ? "已記錄為用完 ✅" : "已記錄為提早丟棄");
     }
-    setStatusUpdating(false)
-    setShowDisposalModal(false)
+    setStatusUpdating(false);
+    setShowDisposalModal(false);
   }
 
   async function handleReasonChange(reason: DisposalReason) {
-    if (!item) return
-    setStatusUpdating(true)
-    const { error } = await updateDisposalReason(item.id, reason)
-    if (error) { showToast('更新失敗', 'error') }
-    else {
-      setItem({ ...item, disposal_reason: reason })
-      showToast('丟棄原因已更新')
+    if (!item) return;
+    setStatusUpdating(true);
+    const { error } = await updateDisposalReason(item.id, reason);
+    if (error) {
+      showToast("更新失敗", "error");
+    } else {
+      setItem({ ...item, disposal_reason: reason });
+      showToast("丟棄原因已更新");
     }
-    setStatusUpdating(false)
-    setShowDisposalModal(false)
+    setStatusUpdating(false);
+    setShowDisposalModal(false);
   }
 
   async function handleIgnoreHealthToggle() {
-    if (!item) return
-    const next = !item.ignore_health
-    const { error } = await updateIgnoreHealth(item.id, next)
-    if (error) { showToast('更新失敗', 'error'); return }
-    setItem({ ...item, ignore_health: next })
-    showToast(next ? '已忽略健康度計算' : '已恢復健康度計算')
+    if (!item) return;
+    const next = !item.ignore_health;
+    const { error } = await updateIgnoreHealth(item.id, next);
+    if (error) {
+      showToast("更新失敗", "error");
+      return;
+    }
+    setItem({ ...item, ignore_health: next });
+    showToast(next ? "已忽略健康度計算" : "已恢復健康度計算");
   }
 
   async function handleDelete() {
-    if (!confirm('確定要刪除這筆品項？')) return
-    setDeleting(true)
-    await deleteItem(Number(id))
-    navigate('/items', { replace: true })
+    if (!confirm("確定要刪除這筆品項？")) return;
+    setDeleting(true);
+    await deleteItem(Number(id));
+    navigate("/items", { replace: true });
   }
 
   async function handleDuplicate() {
-    if (!item) return
-    setDuplicating(true)
+    if (!item) return;
+    setDuplicating(true);
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { id: _id, seq_no: _seq, created_at: _created, updated_at: _updated, ...rest } = item
+    const {
+      id: _id,
+      seq_no: _seq,
+      created_at: _created,
+      updated_at: _updated,
+      ...rest
+    } = item;
     const { data: newItem, error } = await createItem({
       ...rest,
-      disposal_status: 'kept',
+      disposal_status: "kept",
       is_favorite: false,
       is_dud: false,
+      foreign_price: rest.foreign_price ?? null,
       rating: null,
       review: null,
-    })
-    setDuplicating(false)
-    if (error || !newItem) { showToast('複製失敗', 'error'); return }
-    showToast('已複製，請修改需要調整的欄位')
-    navigate(`/items/${newItem.id}/edit`)
+    });
+    setDuplicating(false);
+    if (error || !newItem) {
+      showToast("複製失敗", "error");
+      return;
+    }
+    showToast("已複製，請修改需要調整的欄位");
+    navigate(`/items/${newItem.id}/edit`);
   }
 
   if (loading) {
@@ -181,37 +218,64 @@ export default function ItemDetailPage() {
         <Skeleton className="h-4 w-full" />
         <Skeleton className="h-4 w-3/4" />
       </div>
-    )
+    );
   }
 
   if (!item) {
-    return <p className="text-center text-[var(--color-text-muted)] py-16">找不到此品項</p>
+    return (
+      <p className="text-center text-[var(--color-text-muted)] py-16">
+        找不到此品項
+      </p>
+    );
   }
 
-  const expiryLevel = getExpiryLevel(item.exp_date)
-  const brandName = [item.brand_en, item.brand_zh].filter(Boolean).join(' / ')
-  const itemName = [item.name_en, item.name_zh].filter(Boolean).join(' / ')
+  const expiryLevel = getExpiryLevel(item.exp_date);
+  const brandName = [item.brand_en, item.brand_zh].filter(Boolean).join(" / ");
+  const itemName = [item.name_en, item.name_zh].filter(Boolean).join(" / ");
 
   return (
     <div>
       {/* 頂部操作列 */}
       <div className="flex items-center justify-between mb-5">
-        <button onClick={() => navigate(-1)} className="text-[var(--color-text-muted)] min-h-0 min-w-0 p-1 text-lg">‹</button>
+        <button
+          onClick={() => navigate(-1)}
+          className="text-[var(--color-text-muted)] min-h-0 min-w-0 p-1 text-lg"
+        >
+          ‹
+        </button>
         <div className="flex items-center gap-2">
           {/* 最愛 / 雷品 toggle */}
           <button
-            onClick={() => handleFlagToggle('is_favorite')}
+            onClick={() => handleFlagToggle("is_favorite")}
             className="w-9 h-9 flex items-center justify-center rounded-full border border-[var(--color-border)] min-h-0 min-w-0 transition-colors hover:border-[var(--color-primary)]"
-            title={item.is_favorite ? '取消最愛' : '加入最愛'}
+            title={item.is_favorite ? "取消最愛" : "加入最愛"}
           >
-            <Heart size={16} strokeWidth={item.is_favorite ? 0 : 1.5} fill={item.is_favorite ? 'var(--color-primary)' : 'none'} className={item.is_favorite ? 'text-[var(--color-primary)]' : 'text-[var(--color-text-muted)]'} />
+            <Heart
+              size={16}
+              strokeWidth={item.is_favorite ? 0 : 1.5}
+              fill={item.is_favorite ? "var(--color-primary)" : "none"}
+              className={
+                item.is_favorite
+                  ? "text-[var(--color-primary)]"
+                  : "text-[var(--color-text-muted)]"
+              }
+            />
           </button>
           <button
-            onClick={() => handleFlagToggle('is_dud')}
+            onClick={() => handleFlagToggle("is_dud")}
             className="w-9 h-9 flex items-center justify-center rounded-full border border-[var(--color-border)] min-h-0 min-w-0 transition-colors hover:border-[var(--color-accent)]"
-            title={item.is_dud ? '取消雷品' : '標記雷品'}
+            title={item.is_dud ? "取消雷品" : "標記雷品"}
           >
-            <Zap size={16} strokeWidth={item.is_dud ? 0 : 1.5} fill={item.is_dud ? 'var(--color-accent)' : 'none'} className={item.is_dud ? 'text-[var(--color-accent)]' : 'text-[var(--color-text-muted)]'} />
+            <Zap
+              size={16}
+              strokeWidth={item.is_dud ? 0 : 1.5}
+              fill={item.is_dud ? "var(--color-accent)" : "none"}
+              className={
+                item.is_dud
+                  ? "text-[var(--color-accent)]"
+                  : "text-[var(--color-text-muted)]"
+              }
+            />
           </button>
           <button
             onClick={handleDuplicate}
@@ -225,10 +289,12 @@ export default function ItemDetailPage() {
             onClick={handleIgnoreHealthToggle}
             className={`w-9 h-9 flex items-center justify-center rounded-full border min-h-0 min-w-0 transition-colors ${
               item.ignore_health
-                ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/10 text-[var(--color-accent)]'
-                : 'border-[var(--color-border)] text-[var(--color-text-muted)] hover:border-[var(--color-text-muted)]'
+                ? "border-[var(--color-accent)] bg-[var(--color-accent)]/10 text-[var(--color-accent)]"
+                : "border-[var(--color-border)] text-[var(--color-text-muted)] hover:border-[var(--color-text-muted)]"
             }`}
-            title={item.ignore_health ? '已忽略健康度（點擊恢復）' : '忽略健康度計算'}
+            title={
+              item.ignore_health ? "已忽略健康度（點擊恢復）" : "忽略健康度計算"
+            }
           >
             <ShieldOff size={15} strokeWidth={1.5} />
           </button>
@@ -249,7 +315,7 @@ export default function ItemDetailPage() {
             disabled={deleting}
             className="px-4 py-2 rounded-xl border border-[var(--color-primary)] text-[var(--color-primary)] text-sm font-medium min-h-0 hover:border-[var(--color-primary-dark)] hover:text-[var(--color-primary-dark)] transition-colors disabled:opacity-50"
           >
-            {deleting ? '刪除中…' : '刪除'}
+            {deleting ? "刪除中…" : "刪除"}
           </button>
         </div>
       </div>
@@ -259,13 +325,20 @@ export default function ItemDetailPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-6">
           <div className="bg-[var(--color-bg-card)] rounded-2xl p-6 w-full max-w-sm shadow-xl">
             <p className="text-sm font-medium text-[var(--color-text)] text-center mb-4">
-              確定取消「{flagConfirm === 'is_favorite' ? '最愛' : '雷品'}」標記？
+              確定取消「{flagConfirm === "is_favorite" ? "最愛" : "雷品"}
+              」標記？
             </p>
             <div className="flex gap-3">
-              <button onClick={() => setFlagConfirm(null)} className="flex-1 py-2 rounded-xl border border-[var(--color-border)] text-sm min-h-0">
+              <button
+                onClick={() => setFlagConfirm(null)}
+                className="flex-1 py-2 rounded-xl border border-[var(--color-border)] text-sm min-h-0"
+              >
                 保留
               </button>
-              <button onClick={confirmFlagOff} className="flex-1 py-2 rounded-xl bg-[var(--color-primary)] text-white text-sm font-medium min-h-0">
+              <button
+                onClick={confirmFlagOff}
+                className="flex-1 py-2 rounded-xl bg-[var(--color-primary)] text-white text-sm font-medium min-h-0"
+              >
                 確定取消
               </button>
             </div>
@@ -302,26 +375,46 @@ export default function ItemDetailPage() {
         <div className="mb-2">
           <QuickClassify
             item={item}
-            onUpdated={(patch) => setItem((prev) => prev ? { ...prev, ...patch } : prev)}
+            onUpdated={(patch) =>
+              setItem((prev) => (prev ? { ...prev, ...patch } : prev))
+            }
           />
         </div>
-        <h2 className="text-xl font-semibold text-[var(--color-text)]">{itemName || '（未命名）'}</h2>
-        {brandName && <p className="text-sm text-[var(--color-text-muted)] mt-0.5">{brandName}</p>}
+        <h2 className="text-xl font-semibold text-[var(--color-text)]">
+          {itemName || "（未命名）"}
+        </h2>
+        {brandName && (
+          <p className="text-sm text-[var(--color-text-muted)] mt-0.5">
+            {brandName}
+          </p>
+        )}
         <div className="flex flex-wrap gap-2 mt-2">
-          {item.disposal_status !== 'disposed' && <ExpiryBadge level={expiryLevel} />}
+          {item.disposal_status !== "disposed" && (
+            <ExpiryBadge level={expiryLevel} />
+          )}
           <DisposalBadge status={item.disposal_status} />
           <PriceBadge priceType={item.price_type} currency={item.currency} />
-          {item.item_type === 'skincare' && item.sensitive_skin_ok && (
+          {item.item_type === "skincare" && item.sensitive_skin_ok && (
             <SensitiveBadge status={item.sensitive_skin_ok} />
           )}
           {item.rating && (
             <span className="inline-flex items-center gap-0.5 text-sm px-2 py-0.5 rounded-full bg-yellow-400/10">
-              {'★'.repeat(item.rating).split('').map((_, i) => (
-                <span key={i} className="text-yellow-400">★</span>
-              ))}
-              {'☆'.repeat(5 - item.rating).split('').map((_, i) => (
-                <span key={i} className="text-[var(--color-border)]">★</span>
-              ))}
+              {"★"
+                .repeat(item.rating)
+                .split("")
+                .map((_, i) => (
+                  <span key={i} className="text-yellow-400">
+                    ★
+                  </span>
+                ))}
+              {"☆"
+                .repeat(5 - item.rating)
+                .split("")
+                .map((_, i) => (
+                  <span key={i} className="text-[var(--color-border)]">
+                    ★
+                  </span>
+                ))}
             </span>
           )}
         </div>
@@ -335,36 +428,34 @@ export default function ItemDetailPage() {
             value={[
               item.shade_en ? `#${item.shade_en}` : null,
               item.shade_zh || null,
-            ].filter(Boolean).join(' / ')}
+            ]
+              .filter(Boolean)
+              .join(" / ")}
           />
         )}
         <Row label="製造日期" value={fmt(item.mfg_date)} />
         <Row label="有效期限" value={fmt(item.exp_date)} />
         <Row label="購入日期" value={fmt(item.purchase_date)} />
-        <div className="py-3 border-b border-[var(--color-border)] last:border-0">
-          <div className="flex justify-between">
-            <span className="text-sm text-[var(--color-text-muted)]">購入金額</span>
-            <span className="text-sm text-[var(--color-text)] font-medium text-right max-w-[60%]">
-              {item.price != null ? `NT$ ${item.price.toLocaleString()}` : '—'}
-            </span>
-          </div>
-          {item.price != null && (
-            <div className="mt-1.5 flex justify-end">
-              <div className="w-full">
-                <ExchangeRatePanel amount={item.price} onAdd={handleAddRate} />
-              </div>
-            </div>
-          )}
-        </div>
-        {item.item_type === 'skincare' && item.volume_ml != null && (
+        <Row
+          label="購入金額"
+          value={
+            item.price != null ? `NT$ ${item.price.toLocaleString()}` : null
+          }
+        />
+        {item.item_type === "skincare" && item.volume_ml != null && (
           <Row label="容量" value={`${item.volume_ml} ml`} />
         )}
-        {item.item_type === 'skincare' && item.fragrance && (
-          <Row label="香味" value={
-            item.fragrance === 'strong' ? '太香'
-            : item.fragrance === 'mild' ? '微香'
-            : '無香'
-          } />
+        {item.item_type === "skincare" && item.fragrance && (
+          <Row
+            label="香味"
+            value={
+              item.fragrance === "strong"
+                ? "太香"
+                : item.fragrance === "mild"
+                  ? "微香"
+                  : "無香"
+            }
+          />
         )}
         {item.is_sample && <Row label="小樣" value="是" />}
         {item.is_dud && <Row label="雷品" value="是" />}
@@ -374,26 +465,22 @@ export default function ItemDetailPage() {
       {item.review && (
         <div className="bg-[var(--color-bg-muted)] rounded-2xl px-4 py-4 mb-4">
           <p className="text-xs text-[var(--color-text-muted)] mb-2">心得</p>
-          <p className="text-sm text-[var(--color-text)] whitespace-pre-wrap leading-relaxed">{item.review}</p>
+          <p className="text-sm text-[var(--color-text)] whitespace-pre-wrap leading-relaxed">
+            {item.review}
+          </p>
         </div>
       )}
 
       {/* 備註 */}
       {item.note && (
-        <div className="mb-4">
-          <CollapsibleNote text={item.note} />
-        </div>
-      )}
-
-      {/* 幣值歷史 */}
-      {rateHistory.length > 0 && (
-        <div className="mb-4">
-          <ExchangeRateHistory history={rateHistory} onDelete={handleDeleteRate} />
+        <div className="bg-[var(--color-bg-muted)] rounded-2xl px-4 py-4 mb-4">
+          <p className="text-xs text-[var(--color-text-muted)] mb-2">備註</p>
+          <NoteContent text={item.note} />
         </div>
       )}
 
       {/* 處置狀態操作列 */}
-      {item.disposal_status === 'disposed' ? (
+      {item.disposal_status === "disposed" ? (
         <div className="border border-[var(--color-border)] rounded-2xl overflow-hidden bg-[var(--color-bg-card)] mb-4">
           {/* 丟棄原因顯示 + 可修改 */}
           <button
@@ -401,22 +488,33 @@ export default function ItemDetailPage() {
             disabled={statusUpdating}
             className="w-full flex items-center gap-3 px-4 py-3 border-b border-[var(--color-border)] hover:bg-[var(--color-bg-muted)] transition-colors min-h-0"
           >
-            {item.disposal_reason === 'finished'
-              ? <CircleCheckBig size={16} strokeWidth={1.5} className="text-[var(--color-text-muted)]" />
-              : <Trash2 size={16} strokeWidth={1.5} className="text-[var(--color-text-muted)]" />
-            }
+            {item.disposal_reason === "finished" ? (
+              <CircleCheckBig
+                size={16}
+                strokeWidth={1.5}
+                className="text-[var(--color-text-muted)]"
+              />
+            ) : (
+              <Trash2
+                size={16}
+                strokeWidth={1.5}
+                className="text-[var(--color-text-muted)]"
+              />
+            )}
             <div className="flex-1 text-left">
               <p className="text-xs text-[var(--color-text-muted)]">丟棄原因</p>
               <p className="text-sm font-medium text-[var(--color-text)]">
-                {item.disposal_reason === 'finished' ? '已用完'
-                  : item.disposal_reason === 'discarded' ? '未用完丟棄'
-                  : '尚未記錄'}
+                {item.disposal_reason === "finished"
+                  ? "已用完"
+                  : item.disposal_reason === "discarded"
+                    ? "未用完丟棄"
+                    : "尚未記錄"}
               </p>
             </div>
             <span className="text-xs text-[var(--color-primary)]">修改</span>
           </button>
           <button
-            onClick={() => handleStatusChange('kept')}
+            onClick={() => handleStatusChange("kept")}
             disabled={statusUpdating}
             className="w-full flex items-center justify-center gap-2 py-3 text-sm font-medium text-[var(--color-primary)] hover:bg-[var(--color-primary-light)] transition-colors min-h-0 disabled:opacity-50"
           >
@@ -427,18 +525,29 @@ export default function ItemDetailPage() {
       ) : (
         <div className="flex border border-[var(--color-border)] rounded-2xl overflow-hidden bg-[var(--color-bg-card)] mb-4">
           <button
-            onClick={() => handleStatusChange(item.disposal_status === 'watching' ? 'kept' : 'watching')}
+            onClick={() =>
+              handleStatusChange(
+                item.disposal_status === "watching" ? "kept" : "watching",
+              )
+            }
             disabled={statusUpdating}
             className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium transition-colors min-h-0 disabled:opacity-50 ${
-              item.disposal_status === 'watching'
-                ? 'text-[var(--color-accent)] bg-[var(--color-accent)]/10 hover:bg-[var(--color-accent)]/20'
-                : 'text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10'
+              item.disposal_status === "watching"
+                ? "text-[var(--color-accent)] bg-[var(--color-accent)]/10 hover:bg-[var(--color-accent)]/20"
+                : "text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10"
             }`}
           >
-            {item.disposal_status === 'watching'
-              ? <><EyeOff size={14} strokeWidth={1.5} />取消觀察</>
-              : <><Eye size={14} strokeWidth={1.5} />標記觀察中</>
-            }
+            {item.disposal_status === "watching" ? (
+              <>
+                <EyeOff size={14} strokeWidth={1.5} />
+                取消觀察
+              </>
+            ) : (
+              <>
+                <Eye size={14} strokeWidth={1.5} />
+                標記觀察中
+              </>
+            )}
           </button>
           <div className="w-px bg-[var(--color-border)]" />
           <button
@@ -456,7 +565,11 @@ export default function ItemDetailPage() {
       {showDisposalModal && (
         <DisposalReasonModal
           current={item.disposal_reason}
-          onSelect={item.disposal_status === 'disposed' ? handleReasonChange : handleDispose}
+          onSelect={
+            item.disposal_status === "disposed"
+              ? handleReasonChange
+              : handleDispose
+          }
           onCancel={() => setShowDisposalModal(false)}
           loading={statusUpdating}
         />
@@ -464,5 +577,5 @@ export default function ItemDetailPage() {
 
       <div className="h-8" />
     </div>
-  )
+  );
 }

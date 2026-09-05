@@ -21,8 +21,8 @@ import type { ItemType, PriceType } from "@/types/database";
 // 全形數字（注音輸入法數字鍵）→ 半形
 function toHalfWidth(str: string): string {
   return str
-    .replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xFEE0))
-    .replace(/．/g, '.')
+    .replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0))
+    .replace(/．/g, ".");
 }
 
 const schema = z.object({
@@ -49,7 +49,10 @@ const schema = z.object({
   note: z.string().optional(),
   rating: z.coerce.number().int().min(1).max(5).optional().or(z.literal("")),
   review: z.string().optional(),
-  sensitive_skin_ok: z.enum(["all_ok", "avoid_postop", "sensitive_avoid", "ng", "untested", "ok"]).optional(),
+  sensitive_skin_ok: z
+    .enum(["all_ok", "avoid_postop", "sensitive_avoid", "ng", "untested", "ok"])
+    .optional(),
+  foreign_price: z.coerce.number().nonnegative().optional().or(z.literal("")),
   currency: z.string().optional(),
   fragrance: z.enum(["strong", "mild", "none"]).optional(),
   is_dud: z.boolean().optional(),
@@ -60,7 +63,6 @@ const schema = z.object({
 });
 
 type FormData = z.infer<typeof schema>;
-
 
 function Field({
   label,
@@ -77,7 +79,9 @@ function Field({
     <div>
       <label className="block text-sm font-medium text-[var(--color-text)] mb-1">
         {label}
-        {required && <span className="ml-0.5 text-[var(--color-primary)]">*</span>}
+        {required && (
+          <span className="ml-0.5 text-[var(--color-primary)]">*</span>
+        )}
       </label>
       {children}
       {error && (
@@ -156,16 +160,16 @@ export default function ItemFormPage() {
 
   // register 的數字欄位包裝：type="text" + inputMode + 全形轉半形
   function numReg(name: Parameters<typeof register>[0]) {
-    const { onChange, ...rest } = register(name)
+    const { onChange, ...rest } = register(name);
     return {
       ...rest,
       type: "text" as const,
       inputMode: "decimal" as const,
       onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
-        e.target.value = toHalfWidth(e.target.value)
-        onChange(e)
+        e.target.value = toHalfWidth(e.target.value);
+        onChange(e);
       },
-    }
+    };
   }
 
   useEffect(() => {
@@ -175,13 +179,18 @@ export default function ItemFormPage() {
       Object.entries(data).forEach(([k, v]) => {
         if (v !== null && v !== undefined) {
           // 舊版 'ok' → 新值 'all_ok'
-          const val = (k === 'sensitive_skin_ok' && v === 'ok') ? 'all_ok' : v
-          setValue(k as keyof FormData, val as never)
+          const val = k === "sensitive_skin_ok" && v === "ok" ? "all_ok" : v;
+          setValue(k as keyof FormData, val as never);
         }
       });
       // category/item_type 即使是空值也要明確設定，避免驗證失敗
-      setValue('item_type', data.item_type ?? 'makeup');
-      setValue('category', data.category ?? '');
+      setValue("item_type", data.item_type ?? "makeup");
+      setValue("category", data.category ?? "");
+      setValue("currency", data.currency ?? "");
+      setValue("foreign_price", data.foreign_price ?? "");
+      if (data.currency) setSelectedCurrency(data.currency);
+      if (data.foreign_price != null)
+        setForeignAmount(String(data.foreign_price));
       if (data.image_url) setImagePreview(data.image_url);
     });
   }, [id, isEdit, setValue]);
@@ -249,13 +258,14 @@ export default function ItemFormPage() {
         data.price_type === "split" && data.original_price !== ""
           ? Number(data.original_price)
           : null,
-      rating: data.rating !== "" && data.rating != null ? Number(data.rating) : null,
+      rating:
+        data.rating !== "" && data.rating != null ? Number(data.rating) : null,
       brand_zh: data.brand_zh || null,
       brand_en: data.brand_en || null,
       name_zh: data.name_zh || null,
       name_en: data.name_en || null,
-      shade_zh: itemType === "makeup" ? (data.shade_zh || null) : null,
-      shade_en: itemType === "makeup" ? (data.shade_en || null) : null,
+      shade_zh: itemType === "makeup" ? data.shade_zh || null : null,
+      shade_en: itemType === "makeup" ? data.shade_en || null : null,
       mfg_date: data.mfg_date || null,
       exp_date: data.exp_date || null,
       purchase_date: data.purchase_date || null,
@@ -263,6 +273,10 @@ export default function ItemFormPage() {
       review: data.review || null,
       category: data.category || null,
       subcategory: data.subcategory || null,
+      foreign_price:
+        data.foreign_price !== "" && data.foreign_price != null
+          ? Number(data.foreign_price)
+          : null,
       currency: data.currency || null,
       sensitive_skin_ok:
         itemType === "skincare" ? (data.sensitive_skin_ok ?? "untested") : null,
@@ -270,7 +284,10 @@ export default function ItemFormPage() {
       is_dud: data.is_dud ?? false,
       is_sample: data.is_sample ?? false,
       is_favorite: data.is_favorite ?? false,
-      volume_ml: data.volume_ml !== "" && data.volume_ml != null ? Number(data.volume_ml) : null,
+      volume_ml:
+        data.volume_ml !== "" && data.volume_ml != null
+          ? Number(data.volume_ml)
+          : null,
       channel: data.channel || null,
       ...(image_url ? { image_url } : {}),
     };
@@ -285,20 +302,24 @@ export default function ItemFormPage() {
         setCreatedId(created?.id ?? null);
       }
       // 儲存成功後，將新值加入本地建議清單
-      if (data.brand_en) addCustomOption('brand_en', data.brand_en)
-      if (data.brand_zh) addCustomOption('brand_zh', data.brand_zh)
-      if (data.name_en) addCustomOption('name_en_full',
-        data.brand_en ? `${data.brand_en} — ${data.name_en}` : data.name_en
-      )
-      if (data.name_zh) addCustomOption('name_zh', data.name_zh)
-      if (data.shade_en) addCustomOption('shade_en', data.shade_en)
-      if (isEdit) navigate(`/items/${id}`, { replace: true })
+      if (data.brand_en) addCustomOption("brand_en", data.brand_en);
+      if (data.brand_zh) addCustomOption("brand_zh", data.brand_zh);
+      if (data.name_en)
+        addCustomOption(
+          "name_en_full",
+          data.brand_en ? `${data.brand_en} — ${data.name_en}` : data.name_en,
+        );
+      if (data.name_zh) addCustomOption("name_zh", data.name_zh);
+      if (data.shade_en) addCustomOption("shade_en", data.shade_en);
+      if (isEdit) navigate(`/items/${id}`, { replace: true });
     } catch (err) {
       const detail =
-        err instanceof Error ? err.message
-        : typeof err === 'object' && err !== null && 'message' in err ? String((err as { message: unknown }).message)
-        : undefined
-      showToast("儲存失敗，請稍後再試", "error", detail)
+        err instanceof Error
+          ? err.message
+          : typeof err === "object" && err !== null && "message" in err
+            ? String((err as { message: unknown }).message)
+            : undefined;
+      showToast("儲存失敗，請稍後再試", "error", detail);
     }
     setSubmitting(false);
   };
@@ -310,7 +331,6 @@ export default function ItemFormPage() {
 
   return (
     <div>
-
       <div className="flex items-center gap-3 mb-6">
         <button
           onClick={() => navigate(-1)}
@@ -454,12 +474,12 @@ export default function ItemFormPage() {
             name="mfg_date"
             control={control}
             render={({ field }) => {
-              const mfg = field.value
+              const mfg = field.value;
               function applyShelfLife(years: number) {
-                const base = mfg || new Date().toISOString().slice(0, 10)
-                const d = new Date(base)
-                d.setFullYear(d.getFullYear() + years)
-                setValue("exp_date", d.toISOString().slice(0, 10))
+                const base = mfg || new Date().toISOString().slice(0, 10);
+                const d = new Date(base);
+                d.setFullYear(d.getFullYear() + years);
+                setValue("exp_date", d.toISOString().slice(0, 10));
               }
               return (
                 <div>
@@ -469,7 +489,9 @@ export default function ItemFormPage() {
                     onChange={field.onChange}
                   />
                   <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                    <span className="text-xs text-[var(--color-text-muted)]">推算到期日：</span>
+                    <span className="text-xs text-[var(--color-text-muted)]">
+                      推算到期日：
+                    </span>
                     {[3, 5].map((y) => (
                       <button
                         key={y}
@@ -482,19 +504,19 @@ export default function ItemFormPage() {
                     ))}
                   </div>
                 </div>
-              )
+              );
             }}
           />
           <Controller
             name="exp_date"
             control={control}
             render={({ field }) => {
-              const exp = field.value
+              const exp = field.value;
               function applyShelfLife(years: number) {
-                const base = exp || new Date().toISOString().slice(0, 10)
-                const d = new Date(base)
-                d.setFullYear(d.getFullYear() - years)
-                setValue("mfg_date", d.toISOString().slice(0, 10))
+                const base = exp || new Date().toISOString().slice(0, 10);
+                const d = new Date(base);
+                d.setFullYear(d.getFullYear() - years);
+                setValue("mfg_date", d.toISOString().slice(0, 10));
               }
               return (
                 <div>
@@ -504,7 +526,9 @@ export default function ItemFormPage() {
                     onChange={field.onChange}
                   />
                   <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                    <span className="text-xs text-[var(--color-text-muted)]">反推製造日：</span>
+                    <span className="text-xs text-[var(--color-text-muted)]">
+                      反推製造日：
+                    </span>
                     {[3, 5].map((y) => (
                       <button
                         key={y}
@@ -517,7 +541,7 @@ export default function ItemFormPage() {
                     ))}
                   </div>
                 </div>
-              )
+              );
             }}
           />
         </div>
@@ -538,190 +562,202 @@ export default function ItemFormPage() {
 
           {/* 金額 */}
           <div className="space-y-2">
-          <div className="flex items-center justify-between gap-2">
-            <label className="text-sm font-medium text-[var(--color-text)] whitespace-nowrap">
-              購入金額（NTD）
-            </label>
-            <div className="flex gap-1.5">
-              {(
-                [
-                  { value: "normal",  label: "一般" },
-                  { value: "split",   label: "組合價" },
-                  { value: "gift",    label: "贈品" },
-                  { value: "present", label: "禮物" },
-                ] as const
-              ).map((t) => (
-                <button
-                  key={t.value}
-                  type="button"
-                  onClick={() => setValue("price_type", t.value)}
-                  className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors min-h-0 ${
-                    priceType === t.value
-                      ? "bg-[var(--color-primary)] text-white border-[var(--color-primary)]"
-                      : "bg-[var(--color-bg-card)] text-[var(--color-text-muted)] border-[var(--color-border)]"
-                  }`}
-                >
-                  {t.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {priceType !== "gift" && (
-            <div className="space-y-2">
-              {priceType === "split" && (
-                <div>
-                  <p className="text-xs text-[var(--color-text-muted)] mb-1">
-                    組合總價（NT$）
-                  </p>
-                  <Input
-                    {...numReg("original_price")}
-                    placeholder="例：1500（整組售價）"
-                    error={errors.original_price?.message}
-                  />
-                </div>
-              )}
-              <div>
-                {priceType === "split" && (
-                  <p className="text-xs text-[var(--color-text-muted)] mb-1">
-                    此品項分攤金額（NT$）
-                  </p>
-                )}
-                <div className="relative">
-                  {/* 使用 Controller 讓 setValue 能正確更新顯示 */}
-                  <Controller
-                    name="price"
-                    control={control}
-                    render={({ field }) => (
-                      <Input
-                        type="text"
-                        inputMode="decimal"
-                        value={field.value ?? ""}
-                        onChange={(e) => {
-                          const v = toHalfWidth(e.target.value)
-                          field.onChange(v === "" ? "" : v)
-                        }}
-                        placeholder={
-                          priceType === "split" ? "此色號分攤金額" : "0"
-                        }
-                        error={errors.price?.message}
-                        className="pr-20"
-                      />
-                    )}
-                  />
+            <div className="flex items-center justify-between gap-2">
+              <label className="text-sm font-medium text-[var(--color-text)] whitespace-nowrap">
+                購入金額（NTD）
+              </label>
+              <div className="flex gap-1.5">
+                {(
+                  [
+                    { value: "normal", label: "一般" },
+                    { value: "split", label: "組合價" },
+                    { value: "gift", label: "贈品" },
+                    { value: "present", label: "禮物" },
+                  ] as const
+                ).map((t) => (
                   <button
+                    key={t.value}
                     type="button"
-                    onClick={() => setShowCurrencyPanel((v) => !v)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[var(--color-primary)] font-medium min-h-0 min-w-0 hover:underline"
-                  >
-                    外幣換算
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-          {priceType === "gift" && (
-            <p className="text-xs text-[var(--color-text-muted)] bg-[var(--color-bg-muted)] px-3 py-2 rounded-xl">
-              贈品金額記為 $0，不計入統計花費
-            </p>
-          )}
-
-          {/* 外幣換算面板 */}
-          {showCurrencyPanel && priceType !== "gift" && (
-            <div className="bg-[var(--color-bg-muted)] rounded-xl p-3 space-y-3">
-              <p className="text-xs font-medium text-[var(--color-text)]">
-                外幣換算
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {CURRENCIES.map((c) => (
-                  <button
-                    key={c.code}
-                    type="button"
-                    onClick={() => {
-                      setRate(c.rate);
-                      setSelectedCurrency(c.code);
-                    }}
-                    className={`px-2.5 py-1 rounded-lg text-xs border transition-colors min-h-0 ${
-                      selectedCurrency === c.code
+                    onClick={() => setValue("price_type", t.value)}
+                    className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors min-h-0 ${
+                      priceType === t.value
                         ? "bg-[var(--color-primary)] text-white border-[var(--color-primary)]"
-                        : "bg-[var(--color-bg-card)] text-[var(--color-text)] border-[var(--color-border)]"
+                        : "bg-[var(--color-bg-card)] text-[var(--color-text-muted)] border-[var(--color-border)]"
                     }`}
                   >
-                    {c.label}
+                    {t.label}
                   </button>
                 ))}
               </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  value={foreignAmount}
-                  onChange={(e) => setForeignAmount(toHalfWidth(e.target.value))}
-                  placeholder="外幣金額"
-                  className="flex-1 px-3 py-2 rounded-xl border border-[var(--color-border)] text-sm bg-[var(--color-bg-card)] text-[var(--color-text)] focus:outline-none"
-                />
-                <span className="text-xs text-[var(--color-text-muted)]">
-                  ×
-                </span>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  value={rate}
-                  onChange={(e) => setRate(toHalfWidth(e.target.value))}
-                  placeholder="匯率"
-                  className="w-20 px-3 py-2 rounded-xl border border-[var(--color-border)] text-sm bg-[var(--color-bg-card)] text-[var(--color-text)] focus:outline-none"
-                />
-                <button
-                  type="button"
-                  disabled={!foreignAmount || !rate}
-                  onClick={() => {
-                    const ntd = Math.round(
-                      Number(foreignAmount) * Number(rate),
-                    );
-                    setValue("price", ntd);
-                    if (selectedCurrency)
-                      setValue("currency", selectedCurrency);
-                    setShowCurrencyPanel(false);
-                    setForeignAmount("");
-                    setSelectedCurrency("");
-                  }}
-                  className="px-3 py-2 rounded-xl bg-[var(--color-primary)] text-white text-xs font-medium min-h-0 disabled:opacity-40"
-                >
-                  填入
-                </button>
-              </div>
-              {foreignAmount && rate && (
-                <p className="text-xs text-[var(--color-primary)] font-medium">
-                  ≈ NT${" "}
-                  {Math.round(
-                    Number(foreignAmount) * Number(rate),
-                  ).toLocaleString()}
-                </p>
-              )}
             </div>
-          )}
-          {errors.price && (
-            <p
-              className="text-xs font-medium"
-              style={{ color: "var(--color-primary-dark)" }}
-            >
-              {errors.price.message}
-            </p>
-          )}
+
+            {priceType !== "gift" && (
+              <div className="space-y-2">
+                {priceType === "split" && (
+                  <div>
+                    <p className="text-xs text-[var(--color-text-muted)] mb-1">
+                      組合總價（NT$）
+                    </p>
+                    <Input
+                      {...numReg("original_price")}
+                      placeholder="例：1500（整組售價）"
+                      error={errors.original_price?.message}
+                    />
+                  </div>
+                )}
+                <div>
+                  {priceType === "split" && (
+                    <p className="text-xs text-[var(--color-text-muted)] mb-1">
+                      此品項分攤金額（NT$）
+                    </p>
+                  )}
+                  <div className="relative">
+                    {/* 使用 Controller 讓 setValue 能正確更新顯示 */}
+                    <Controller
+                      name="price"
+                      control={control}
+                      render={({ field }) => (
+                        <Input
+                          type="text"
+                          inputMode="decimal"
+                          value={field.value ?? ""}
+                          onChange={(e) => {
+                            const v = toHalfWidth(e.target.value);
+                            field.onChange(v === "" ? "" : v);
+                          }}
+                          placeholder={
+                            priceType === "split" ? "此色號分攤金額" : "0"
+                          }
+                          error={errors.price?.message}
+                          className="pr-20"
+                        />
+                      )}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowCurrencyPanel((v) => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[var(--color-primary)] font-medium min-h-0 min-w-0 hover:underline"
+                    >
+                      外幣換算
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+            {priceType === "gift" && (
+              <p className="text-xs text-[var(--color-text-muted)] bg-[var(--color-bg-muted)] px-3 py-2 rounded-xl">
+                贈品金額記為 $0，不計入統計花費
+              </p>
+            )}
+
+            {/* 外幣換算面板 */}
+            {showCurrencyPanel && priceType !== "gift" && (
+              <div className="bg-[var(--color-bg-muted)] rounded-xl p-3 space-y-3">
+                <p className="text-xs font-medium text-[var(--color-text)]">
+                  外幣換算
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {CURRENCIES.map((c) => (
+                    <button
+                      key={c.code}
+                      type="button"
+                      onClick={() => {
+                        setRate(c.rate);
+                        setSelectedCurrency(c.code);
+                      }}
+                      className={`px-2.5 py-1 rounded-lg text-xs border transition-colors min-h-0 ${
+                        selectedCurrency === c.code
+                          ? "bg-[var(--color-primary)] text-white border-[var(--color-primary)]"
+                          : "bg-[var(--color-bg-card)] text-[var(--color-text)] border-[var(--color-border)]"
+                      }`}
+                    >
+                      {c.label}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={foreignAmount}
+                    onChange={(e) =>
+                      setForeignAmount(toHalfWidth(e.target.value))
+                    }
+                    placeholder="外幣金額"
+                    className="flex-1 px-3 py-2 rounded-xl border border-[var(--color-border)] text-sm bg-[var(--color-bg-card)] text-[var(--color-text)] focus:outline-none"
+                  />
+                  <span className="text-xs text-[var(--color-text-muted)]">
+                    ×
+                  </span>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={rate}
+                    onChange={(e) => setRate(toHalfWidth(e.target.value))}
+                    placeholder="匯率"
+                    className="w-20 px-3 py-2 rounded-xl border border-[var(--color-border)] text-sm bg-[var(--color-bg-card)] text-[var(--color-text)] focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    disabled={!foreignAmount || !rate}
+                    onClick={() => {
+                      const ntd = Math.round(
+                        Number(foreignAmount) * Number(rate),
+                      );
+                      const foreignValue = Number(foreignAmount);
+                      setValue("price", ntd);
+                      setValue("foreign_price", foreignValue);
+                      if (selectedCurrency)
+                        setValue("currency", selectedCurrency);
+                      setShowCurrencyPanel(false);
+                      setForeignAmount("");
+                      setSelectedCurrency("");
+                    }}
+                    className="px-3 py-2 rounded-xl bg-[var(--color-primary)] text-white text-xs font-medium min-h-0 disabled:opacity-40"
+                  >
+                    填入
+                  </button>
+                </div>
+                {foreignAmount && rate && (
+                  <p className="text-xs text-[var(--color-primary)] font-medium">
+                    ≈ NT${" "}
+                    {Math.round(
+                      Number(foreignAmount) * Number(rate),
+                    ).toLocaleString()}
+                  </p>
+                )}
+              </div>
+            )}
+            {errors.price && (
+              <p
+                className="text-xs font-medium"
+                style={{ color: "var(--color-primary-dark)" }}
+              >
+                {errors.price.message}
+              </p>
+            )}
+          </div>
         </div>
-        </div>{/* end 購入日期 + 購入金額 grid */}
+        {/* end 購入日期 + 購入金額 grid */}
 
         {/* 通路 */}
         <div>
-          <label className="block text-sm font-medium text-[var(--color-text)] mb-2">通路</label>
+          <label className="block text-sm font-medium text-[var(--color-text)] mb-2">
+            通路
+          </label>
           <div className="flex flex-wrap gap-2">
             {channels.map((ch) => (
               <button
                 key={ch.id}
                 type="button"
-                onClick={() => setValue('channel', watch('channel') === ch.label ? undefined : ch.label)}
+                onClick={() =>
+                  setValue(
+                    "channel",
+                    watch("channel") === ch.label ? undefined : ch.label,
+                  )
+                }
                 className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors min-h-0 ${
-                  watch('channel') === ch.label ? activeType : inactiveType
+                  watch("channel") === ch.label ? activeType : inactiveType
                 }`}
               >
                 {ch.label}
@@ -746,9 +782,12 @@ export default function ItemFormPage() {
                     e.preventDefault();
                     setImageFile(null);
                     setImagePreview(null);
-                    const input = (e.currentTarget.closest('label') as HTMLLabelElement)
-                      ?.querySelector('input[type="file"]') as HTMLInputElement | null;
-                    if (input) input.value = '';
+                    const input = (
+                      e.currentTarget.closest("label") as HTMLLabelElement
+                    )?.querySelector(
+                      'input[type="file"]',
+                    ) as HTMLInputElement | null;
+                    if (input) input.value = "";
                   }}
                   className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full text-xs flex items-center justify-center min-h-0 min-w-0"
                 >
@@ -772,22 +811,33 @@ export default function ItemFormPage() {
 
         {/* 功能欄 */}
         <div className="bg-[var(--color-bg-muted)] rounded-2xl px-4 py-3 space-y-3">
-          <p className="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wide">功能標記</p>
+          <p className="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wide">
+            功能標記
+          </p>
 
           {/* 香味（保養品專屬） */}
           {itemType === "skincare" && (
             <div>
-              <p className="text-sm font-medium text-[var(--color-text)] mb-2">香味</p>
+              <p className="text-sm font-medium text-[var(--color-text)] mb-2">
+                香味
+              </p>
               <div className="flex gap-2">
-                {([
-                  { value: "strong", label: "太香" },
-                  { value: "mild",   label: "微香" },
-                  { value: "none",   label: "無香" },
-                ] as const).map((o) => (
+                {(
+                  [
+                    { value: "strong", label: "太香" },
+                    { value: "mild", label: "微香" },
+                    { value: "none", label: "無香" },
+                  ] as const
+                ).map((o) => (
                   <button
                     key={o.value}
                     type="button"
-                    onClick={() => setValue("fragrance", watch("fragrance") === o.value ? undefined : o.value)}
+                    onClick={() =>
+                      setValue(
+                        "fragrance",
+                        watch("fragrance") === o.value ? undefined : o.value,
+                      )
+                    }
                     className={`flex-1 py-2 rounded-xl text-sm font-medium border transition-colors min-h-0 ${
                       watch("fragrance") === o.value ? activeType : inactiveType
                     }`}
@@ -802,26 +852,29 @@ export default function ItemFormPage() {
           {/* ML 數（保養品） */}
           {itemType === "skincare" && (
             <div>
-              <p className="text-sm font-medium text-[var(--color-text)] mb-2">容量（ml）</p>
-              <Input
-                {...numReg("volume_ml")}
-                placeholder="例：50"
-              />
+              <p className="text-sm font-medium text-[var(--color-text)] mb-2">
+                容量（ml）
+              </p>
+              <Input {...numReg("volume_ml")} placeholder="例：50" />
             </div>
           )}
 
           {/* 最愛 */}
           <div className="flex items-center justify-between py-1">
             <div>
-              <p className="text-sm font-medium text-[var(--color-text)]">最愛</p>
-              <p className="text-xs text-[var(--color-text-muted)]">喜歡，下次還想買</p>
+              <p className="text-sm font-medium text-[var(--color-text)]">
+                最愛
+              </p>
+              <p className="text-xs text-[var(--color-text-muted)]">
+                喜歡，下次還想買
+              </p>
             </div>
             <Toggle
               checked={!!watch("is_favorite")}
               onChange={() => {
-                const next = !watch("is_favorite")
-                setValue("is_favorite", next)
-                if (next) setValue("is_dud", false)
+                const next = !watch("is_favorite");
+                setValue("is_favorite", next);
+                if (next) setValue("is_dud", false);
               }}
               color="primary"
             />
@@ -830,15 +883,19 @@ export default function ItemFormPage() {
           {/* 雷品 */}
           <div className="flex items-center justify-between py-1">
             <div>
-              <p className="text-sm font-medium text-[var(--color-text)]">雷品</p>
-              <p className="text-xs text-[var(--color-text-muted)]">踩雷，不推薦</p>
+              <p className="text-sm font-medium text-[var(--color-text)]">
+                雷品
+              </p>
+              <p className="text-xs text-[var(--color-text-muted)]">
+                踩雷，不推薦
+              </p>
             </div>
             <Toggle
               checked={!!watch("is_dud")}
               onChange={() => {
-                const next = !watch("is_dud")
-                setValue("is_dud", next)
-                if (next) setValue("is_favorite", false)
+                const next = !watch("is_dud");
+                setValue("is_dud", next);
+                if (next) setValue("is_favorite", false);
               }}
               color="accent"
             />
@@ -847,8 +904,12 @@ export default function ItemFormPage() {
           {/* 小樣 */}
           <div className="flex items-center justify-between py-1">
             <div>
-              <p className="text-sm font-medium text-[var(--color-text)]">小樣</p>
-              <p className="text-xs text-[var(--color-text-muted)]">試用品、隨贈樣品</p>
+              <p className="text-sm font-medium text-[var(--color-text)]">
+                小樣
+              </p>
+              <p className="text-xs text-[var(--color-text-muted)]">
+                試用品、隨贈樣品
+              </p>
             </div>
             <Toggle
               checked={!!watch("is_sample")}
@@ -873,7 +934,9 @@ export default function ItemFormPage() {
               <button
                 key={n}
                 type="button"
-                onClick={() => setValue("rating", watch("rating") === n ? "" : n)}
+                onClick={() =>
+                  setValue("rating", watch("rating") === n ? "" : n)
+                }
                 className={`w-10 h-10 rounded-full text-2xl transition-colors min-h-0 min-w-0 ${
                   Number(watch("rating")) >= n
                     ? "text-yellow-400"
@@ -915,7 +978,9 @@ export default function ItemFormPage() {
                     type="button"
                     onClick={() => setValue("sensitive_skin_ok", o.value)}
                     className={`flex-1 py-2 rounded-xl text-sm font-medium border transition-colors min-h-0 ${
-                      watch("sensitive_skin_ok") === o.value ? activeType : inactiveType
+                      watch("sensitive_skin_ok") === o.value
+                        ? activeType
+                        : inactiveType
                     }`}
                   >
                     {o.label}
@@ -930,7 +995,9 @@ export default function ItemFormPage() {
                     type="button"
                     onClick={() => setValue("sensitive_skin_ok", o.value)}
                     className={`flex-1 py-2 rounded-xl text-sm font-medium border transition-colors min-h-0 ${
-                      watch("sensitive_skin_ok") === o.value ? activeType : inactiveType
+                      watch("sensitive_skin_ok") === o.value
+                        ? activeType
+                        : inactiveType
                     }`}
                   >
                     {o.label}
@@ -955,17 +1022,32 @@ export default function ItemFormPage() {
 
       {/* 新增成功後：詢問是否繼續新增 */}
       {createdId !== null && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-6"
-          style={{ backgroundColor: 'rgba(0,0,0,0.35)', backdropFilter: 'blur(2px)' }}>
-          <div className="w-full max-w-sm bg-[var(--color-bg-card)] rounded-2xl p-6 shadow-xl"
-            style={{ animation: 'selectFadeIn 0.15s ease' }}>
-            <p className="text-base font-semibold text-[var(--color-text)] mb-1">品項已新增！</p>
-            <p className="text-sm text-[var(--color-text-muted)] mb-5">要繼續新增另一筆嗎？</p>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center px-6"
+          style={{
+            backgroundColor: "rgba(0,0,0,0.35)",
+            backdropFilter: "blur(2px)",
+          }}
+        >
+          <div
+            className="w-full max-w-sm bg-[var(--color-bg-card)] rounded-2xl p-6 shadow-xl"
+            style={{ animation: "selectFadeIn 0.15s ease" }}
+          >
+            <p className="text-base font-semibold text-[var(--color-text)] mb-1">
+              品項已新增！
+            </p>
+            <p className="text-sm text-[var(--color-text-muted)] mb-5">
+              要繼續新增另一筆嗎？
+            </p>
             <div className="flex flex-col gap-2.5">
               <button
                 type="button"
                 onClick={() => {
-                  reset({ item_type: "makeup", sensitive_skin_ok: "untested", price_type: "normal" });
+                  reset({
+                    item_type: "makeup",
+                    sensitive_skin_ok: "untested",
+                    price_type: "normal",
+                  });
                   setImageFile(null);
                   setImagePreview(null);
                   setShowCurrencyPanel(false);
