@@ -33,6 +33,7 @@ export function ItemCard({
   const { getCategoryLabel } = useCategories()
   const navigate = useNavigate()
   const [item, setItem] = useState(initialItem)
+  const [quickClassifyOpen, setQuickClassifyOpen] = useState(false)
   const isDisposed = item.disposal_status === 'disposed'
   const isWatching = item.disposal_status === 'watching'
   const expiryLevel = getExpiryLevel(item.exp_date)
@@ -137,7 +138,7 @@ export function ItemCard({
 
   return (
     // outer: clips the sliding action buttons
-    <div className="relative overflow-hidden rounded-xl">
+    <div className={`relative rounded-xl ${quickClassifyOpen ? 'z-20 overflow-visible' : 'overflow-hidden'}`}>
 
       {/* action buttons (revealed by swipe) */}
       <div
@@ -327,6 +328,7 @@ export function ItemCard({
               <QuickClassify
                 item={item}
                 onUpdated={(patch) => setItem((prev) => ({ ...prev, ...patch }))}
+                onOpenChange={setQuickClassifyOpen}
               />
             </div>
           </div>

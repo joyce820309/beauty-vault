@@ -58,6 +58,7 @@ export interface Item {
   disposal_reason: DisposalReason | null
   price_type: PriceType | null
   original_price: number | null
+  foreign_price: number | null
   currency: string | null
   foreign_amount: number | null
   exchange_rate: number | null

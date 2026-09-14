@@ -62,6 +62,7 @@ export default function WishlistPage() {
       price:            item.price ?? null,
       price_type:       item.price_type ?? null,
       original_price:   null,
+      foreign_price:    item.foreign_amount ?? null,
       purchase_date:    null,
       image_url:        item.image_url ?? null,
       note:             item.note ?? null,

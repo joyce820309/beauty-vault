@@ -1,36 +1,45 @@
-import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { Plus, Package, CheckCircle, Eye, PawPrint, Palette, ShoppingBag } from 'lucide-react'
-import { getItems } from '@/lib/supabase/items'
-import { getExpiryLevel, expiryColors, type ExpiryLevel } from '@/utils/expiry'
-import { Skeleton } from '@/components/ui/Skeleton'
-import type { Item } from '@/types/database'
-import { format } from 'date-fns'
+import { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import {
+  Plus,
+  Package,
+  CheckCircle,
+  Eye,
+  PawPrint,
+  Palette,
+  ShoppingBag,
+  Search,
+  X,
+} from "lucide-react";
+import { getItems } from "@/lib/supabase/items";
+import { getExpiryLevel, expiryColors, type ExpiryLevel } from "@/utils/expiry";
+import { Skeleton } from "@/components/ui/Skeleton";
+import type { Item } from "@/types/database";
+import { format } from "date-fns";
 
 // 切換方案：'A' = 2×2 卡片格, 'C' = 橫向滑動卡片
-const EXPIRY_STYLE: 'A' | 'C' = 'C'
+const EXPIRY_STYLE: "A" | "C" = "C";
 
 type ExpiryCardInfo = {
-  level: ExpiryLevel
-  label: string
-  sublabel: string
-  count: number
-  filter: string
-}
+  level: ExpiryLevel;
+  label: string;
+  sublabel: string;
+  count: number;
+  filter: string;
+};
 
-const EXPIRY_CARD_DEFS: Omit<ExpiryCardInfo, 'count'>[] = [
-  { level: 'expired', label: '已過期',       sublabel: '未處理',   filter: 'expired' },
-  { level: 'urgent',  label: '緊急',          sublabel: '7 天內',   filter: 'urgent'  },
-  { level: 'warning', label: '警告',          sublabel: '8–30 天',  filter: 'warning' },
-  { level: 'caution', label: '注意',          sublabel: '1–3 個月', filter: 'caution' },
-  { level: 'notice',  label: '通知',          sublabel: '3–6 個月', filter: 'notice'  },
-]
-
+const EXPIRY_CARD_DEFS: Omit<ExpiryCardInfo, "count">[] = [
+  { level: "expired", label: "已過期", sublabel: "未處理", filter: "expired" },
+  { level: "urgent", label: "緊急", sublabel: "7 天內", filter: "urgent" },
+  { level: "warning", label: "警告", sublabel: "8–30 天", filter: "warning" },
+  { level: "caution", label: "注意", sublabel: "1–3 個月", filter: "caution" },
+  { level: "notice", label: "通知", sublabel: "3–6 個月", filter: "notice" },
+];
 
 // ── 方案 A：2×N 卡片格 ────────────────────────────────────────────
 function ExpiryGridCards({ cards }: { cards: ExpiryCardInfo[] }) {
-  const active = cards.filter(c => c.count > 0)
-  if (active.length === 0) return null
+  const active = cards.filter((c) => c.count > 0);
+  if (active.length === 0) return null;
 
   return (
     <div className="grid grid-cols-2 gap-2">
@@ -45,32 +54,43 @@ function ExpiryGridCards({ cards }: { cards: ExpiryCardInfo[] }) {
           }}
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium" style={{ color: expiryColors[card.level] }}>
+            <span
+              className="text-xs font-medium"
+              style={{ color: expiryColors[card.level] }}
+            >
               {card.label}
             </span>
             <span
               className="text-xs px-1.5 py-0.5 rounded-full font-semibold"
-              style={{ backgroundColor: `${expiryColors[card.level]}22`, color: expiryColors[card.level] }}
+              style={{
+                backgroundColor: `${expiryColors[card.level]}22`,
+                color: expiryColors[card.level],
+              }}
             >
               {card.count}
             </span>
           </div>
-          <p className="text-xs text-[var(--color-text-muted)]">{card.sublabel}</p>
+          <p className="text-xs text-[var(--color-text-muted)]">
+            {card.sublabel}
+          </p>
         </Link>
       ))}
     </div>
-  )
+  );
 }
 
 // ── 方案 C：自適應 grid，不滑動 ──────────────────────────────────
 function ExpiryScrollCards({ cards }: { cards: ExpiryCardInfo[] }) {
-  const active = cards.filter(c => c.count > 0)
-  if (active.length === 0) return null
+  const active = cards.filter((c) => c.count > 0);
+  if (active.length === 0) return null;
 
-  const cols = active.length <= 3 ? active.length : active.length === 4 ? 4 : 5
+  const cols = active.length <= 3 ? active.length : active.length === 4 ? 4 : 5;
 
   return (
-    <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
+    <div
+      className="grid gap-2"
+      style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
+    >
       {active.map((card) => (
         <Link
           key={card.level}
@@ -88,65 +108,100 @@ function ExpiryScrollCards({ cards }: { cards: ExpiryCardInfo[] }) {
             {card.count}
           </span>
           <div>
-            <p className="text-xs font-medium truncate" style={{ color: expiryColors[card.level] }}>
+            <p
+              className="text-xs font-medium truncate"
+              style={{ color: expiryColors[card.level] }}
+            >
               {card.label}
             </p>
-            <p className="text-xs text-[var(--color-text-muted)] mt-0.5 truncate">{card.sublabel}</p>
+            <p className="text-xs text-[var(--color-text-muted)] mt-0.5 truncate">
+              {card.sublabel}
+            </p>
           </div>
         </Link>
       ))}
     </div>
-  )
+  );
 }
 
 export default function HomePage() {
-  const [items, setItems] = useState<Item[]>([])
-  const [loading, setLoading] = useState(true)
+  const [items, setItems] = useState<Item[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [query, setQuery] = useState("");
+  const navigate = useNavigate();
 
   useEffect(() => {
     getItems().then(({ data }) => {
-      setItems(data ?? [])
-      setLoading(false)
-    })
-  }, [])
+      setItems(data ?? []);
+      setLoading(false);
+    });
+  }, []);
 
-  const notWatching = (i: Item) => i.disposal_status !== 'disposed' && i.disposal_status !== 'watching'
+  const notWatching = (i: Item) =>
+    i.disposal_status !== "disposed" && i.disposal_status !== "watching";
 
-  const expiryCards: ExpiryCardInfo[] = EXPIRY_CARD_DEFS.map(def => ({
+  const expiryCards: ExpiryCardInfo[] = EXPIRY_CARD_DEFS.map((def) => ({
     ...def,
-    count: items.filter(i => i.exp_date && notWatching(i) && getExpiryLevel(i.exp_date) === def.level).length,
-  }))
+    count: items.filter(
+      (i) =>
+        i.exp_date &&
+        notWatching(i) &&
+        getExpiryLevel(i.exp_date) === def.level,
+    ).length,
+  }));
 
-  const totalExpiring = expiryCards.reduce((s, c) => s + c.count, 0)
-  const watchingItems = items.filter((i) => i.disposal_status === 'watching')
+  const totalExpiring = expiryCards.reduce((s, c) => s + c.count, 0);
+  const watchingItems = items.filter((i) => i.disposal_status === "watching");
 
   return (
     <div>
       <div className="mb-6">
         <h2 className="text-2xl font-semibold text-[var(--color-primary)] flex items-center gap-2">
-          <PawPrint size={22} strokeWidth={1.5} fill="var(--color-primary)" className="text-[var(--color-primary)] flex-shrink-0" />
+          <PawPrint
+            size={22}
+            strokeWidth={1.5}
+            fill="var(--color-primary)"
+            className="text-[var(--color-primary)] flex-shrink-0"
+          />
           Beauty Vault
         </h2>
-        <p className="text-sm text-[var(--color-text-muted)] mt-0.5">{format(new Date(), 'yyyy年M月d日')}</p>
+        <p className="text-sm text-[var(--color-text-muted)] mt-0.5">
+          {format(new Date(), "yyyy年M月d日")}
+        </p>
       </div>
 
       {/* 即期預警 */}
       <section className="mb-5">
         <div className="flex items-center justify-between mb-2">
-          <h3 className="text-sm font-semibold text-[var(--color-text-muted)]">即期預警</h3>
-          <Link to="/expiry" className="text-xs text-[var(--color-primary)] hover:underline min-h-0">管理 →</Link>
+          <h3 className="text-sm font-semibold text-[var(--color-text-muted)]">
+            即期預警
+          </h3>
+          <Link
+            to="/expiry"
+            className="text-xs text-[var(--color-primary)] hover:underline min-h-0"
+          >
+            管理 →
+          </Link>
         </div>
         {loading ? (
           <Skeleton className="h-24 rounded-2xl" />
         ) : totalExpiring === 0 ? (
           <div className="bg-[var(--color-bg-muted)] rounded-2xl px-4 py-4 flex items-center gap-3">
-            <CheckCircle size={22} strokeWidth={1.5} className="text-green-500 flex-shrink-0" />
+            <CheckCircle
+              size={22}
+              strokeWidth={1.5}
+              className="text-green-500 flex-shrink-0"
+            />
             <div>
-              <p className="text-sm font-medium text-[var(--color-text)]">目前沒有即期品項</p>
-              <p className="text-xs text-[var(--color-text-muted)]">所有品項均在安全期內</p>
+              <p className="text-sm font-medium text-[var(--color-text)]">
+                目前沒有即期品項
+              </p>
+              <p className="text-xs text-[var(--color-text-muted)]">
+                所有品項均在安全期內
+              </p>
             </div>
           </div>
-        ) : EXPIRY_STYLE === 'A' ? (
+        ) : EXPIRY_STYLE === "A" ? (
           <ExpiryGridCards cards={expiryCards} />
         ) : (
           <ExpiryScrollCards cards={expiryCards} />
@@ -157,16 +212,35 @@ export default function HomePage() {
       {!loading && watchingItems.length > 0 && (
         <section className="mb-5">
           <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-semibold text-[var(--color-text-muted)]">觀察中</h3>
-            <Link to="/expiry?tab=watching" className="text-xs text-[var(--color-primary)] hover:underline min-h-0">管理 →</Link>
+            <h3 className="text-sm font-semibold text-[var(--color-text-muted)]">
+              觀察中
+            </h3>
+            <Link
+              to="/expiry?tab=watching"
+              className="text-xs text-[var(--color-primary)] hover:underline min-h-0"
+            >
+              管理 →
+            </Link>
           </div>
           <Link
             to="/expiry?tab=watching"
             className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg-card)] px-4 py-3 flex items-center gap-3 transition-opacity active:opacity-70"
           >
-            <Eye size={16} strokeWidth={1.5} style={{ color: expiryColors['notice'] }} />
-            <span className="text-sm text-[var(--color-text)] flex-1">觀察中</span>
-            <span className="text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: `${expiryColors['notice']}18`, color: expiryColors['notice'] }}>
+            <Eye
+              size={16}
+              strokeWidth={1.5}
+              style={{ color: expiryColors["notice"] }}
+            />
+            <span className="text-sm text-[var(--color-text)] flex-1">
+              觀察中
+            </span>
+            <span
+              className="text-xs px-2 py-0.5 rounded-full"
+              style={{
+                backgroundColor: `${expiryColors["notice"]}18`,
+                color: expiryColors["notice"],
+              }}
+            >
               {watchingItems.length} 筆
             </span>
           </Link>
@@ -174,27 +248,84 @@ export default function HomePage() {
       )}
 
       {/* 快速進入 */}
+      {/* 首頁搜尋（放在快速進入上方） */}
+      <section className="mb-4">
+        <div className="relative">
+          <Search
+            size={16}
+            strokeWidth={1.5}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]"
+          />
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && query.trim())
+                navigate(`/search?q=${encodeURIComponent(query.trim())}`);
+            }}
+            placeholder="搜尋品牌、品名、色號…"
+            className="w-full pl-10 pr-10 py-3 rounded-xl border border-[var(--color-border)] text-sm text-[var(--color-text)] bg-[var(--color-bg-card)] focus:outline-none focus:border-[var(--color-primary)]"
+          />
+          {query && (
+            <button
+              onClick={() => setQuery("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] min-h-0 min-w-0 w-5 h-5 flex items-center justify-center"
+            >
+              <X size={14} strokeWidth={2} />
+            </button>
+          )}
+        </div>
+      </section>
+
       <section>
-        <h3 className="text-sm font-semibold text-[var(--color-text-muted)] mb-2">快速進入</h3>
+        <h3 className="text-sm font-semibold text-[var(--color-text-muted)] mb-2">
+          快速進入
+        </h3>
         <div className="grid grid-cols-2 gap-3">
           {[
-            { to: '/my/looks',  Icon: Palette,   label: '妝容主題', sub: '今日妝容' },
-            { to: '/my/wishlist', Icon: ShoppingBag, label: '採購清單', sub: '待買清單' },
-            { to: '/items/new', Icon: Plus,      label: '新增品項', sub: null },
-            { to: '/items',     Icon: Package,   label: '全部品項', sub: !loading && items.length > 0 ? `${items.length} 件` : null },
+            {
+              to: "/my/looks",
+              Icon: Palette,
+              label: "妝容主題",
+              sub: "今日妝容",
+            },
+            {
+              to: "/my/wishlist",
+              Icon: ShoppingBag,
+              label: "採購清單",
+              sub: "待買清單",
+            },
+            { to: "/items/new", Icon: Plus, label: "新增品項", sub: null },
+            {
+              to: "/items",
+              Icon: Package,
+              label: "全部品項",
+              sub: !loading && items.length > 0 ? `${items.length} 件` : null,
+            },
           ].map(({ to, Icon, label, sub }) => (
             <Link
               key={to}
               to={to}
               className="flex flex-col items-center justify-center gap-1.5 p-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg-card)] hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-light)] transition-colors"
             >
-              <Icon size={26} strokeWidth={1.5} className="text-[var(--color-primary)]" />
-              <span className="text-sm font-medium text-[var(--color-text)]">{label}</span>
-              {sub && <span className="text-xs text-[var(--color-text-muted)]">{sub}</span>}
+              <Icon
+                size={26}
+                strokeWidth={1.5}
+                className="text-[var(--color-primary)]"
+              />
+              <span className="text-sm font-medium text-[var(--color-text)]">
+                {label}
+              </span>
+              {sub && (
+                <span className="text-xs text-[var(--color-text-muted)]">
+                  {sub}
+                </span>
+              )}
             </Link>
           ))}
         </div>
       </section>
     </div>
-  )
+  );
 }
