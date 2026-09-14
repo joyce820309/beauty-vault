@@ -51,6 +51,8 @@ const schema = z.object({
   review: z.string().optional(),
   sensitive_skin_ok: z.enum(["all_ok", "avoid_postop", "sensitive_avoid", "ng", "untested", "ok"]).optional(),
   currency: z.string().optional(),
+  foreign_amount: z.coerce.number().positive().optional().or(z.literal("")),
+  exchange_rate: z.coerce.number().positive().optional().or(z.literal("")),
   fragrance: z.enum(["strong", "mild", "none"]).optional(),
   is_dud: z.boolean().optional(),
   is_sample: z.boolean().optional(),
@@ -264,6 +266,8 @@ export default function ItemFormPage() {
       category: data.category || null,
       subcategory: data.subcategory || null,
       currency: data.currency || null,
+      foreign_amount: data.foreign_amount === "" ? null : Number(data.foreign_amount) || null,
+      exchange_rate: data.exchange_rate === "" ? null : Number(data.exchange_rate) || null,
       sensitive_skin_ok:
         itemType === "skincare" ? (data.sensitive_skin_ok ?? "untested") : null,
       fragrance: itemType === "skincare" ? (data.fragrance ?? null) : null,
@@ -681,9 +685,9 @@ export default function ItemFormPage() {
                     setValue("price", ntd);
                     if (selectedCurrency)
                       setValue("currency", selectedCurrency);
+                    setValue("foreign_amount", Number(foreignAmount));
+                    setValue("exchange_rate", Number(rate));
                     setShowCurrencyPanel(false);
-                    setForeignAmount("");
-                    setSelectedCurrency("");
                   }}
                   className="px-3 py-2 rounded-xl bg-[var(--color-primary)] text-white text-xs font-medium min-h-0 disabled:opacity-40"
                 >

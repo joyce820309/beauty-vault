@@ -16,6 +16,7 @@ import AestheticDetailPage from "@/pages/mypage/AestheticDetailPage";
 import ProfilePage from "@/pages/mypage/ProfilePage";
 import WishlistPage from "@/pages/wishlist/WishlistPage";
 import WishlistDetailPage from "@/pages/wishlist/WishlistDetailPage";
+import WishlistFormPage from "@/pages/wishlist/WishlistFormPage";
 import CategoriesPage from "@/pages/mypage/CategoriesPage";
 import ChannelsPage from "@/pages/mypage/ChannelsPage";
 import MedicationListPage from "@/pages/medications/MedicationListPage";
@@ -54,7 +55,9 @@ function AppRoutes() {
         <Route path="my/aesthetic/purchase/:purchaseId/edit" element={<PurchaseFormPage />} />
         <Route path="my/profile" element={<ProfilePage />} />
         <Route path="my/wishlist" element={<WishlistPage />} />
+        <Route path="my/wishlist/new" element={<WishlistFormPage />} />
         <Route path="my/wishlist/:id" element={<WishlistDetailPage />} />
+        <Route path="my/wishlist/:id/edit" element={<WishlistFormPage />} />
         <Route path="my/categories" element={<CategoriesPage />} />
         <Route path="my/channels" element={<ChannelsPage />} />
         <Route path="my/notifications" element={<NotificationsPage />} />

@@ -1,4 +1,4 @@
-import { NavLink } from "react-router-dom";
+import { Link, NavLink } from "react-router-dom";
 import {
   Home,
   Package,
@@ -34,7 +34,7 @@ export default function Sidebar() {
     <aside className="fixed left-0 top-0 h-full w-64 bg-[var(--color-bg-card)] border-r border-[var(--color-border)] flex flex-col">
       <div className="px-6 py-5 border-b border-[var(--color-border)]">
         <h1 className="text-lg font-semibold text-[var(--color-primary)]">
-          BeautyVault
+          <Link to="/">BeautyVault</Link>
         </h1>
       </div>
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">

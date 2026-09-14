@@ -1,0 +1,3 @@
+ALTER TABLE wishlist ADD COLUMN IF NOT EXISTS foreign_currency TEXT;
+ALTER TABLE wishlist ADD COLUMN IF NOT EXISTS foreign_amount NUMERIC;
+ALTER TABLE wishlist ADD COLUMN IF NOT EXISTS exchange_rate NUMERIC;

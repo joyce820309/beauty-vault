@@ -59,6 +59,8 @@ export interface Item {
   price_type: PriceType | null
   original_price: number | null
   currency: string | null
+  foreign_amount: number | null
+  exchange_rate: number | null
   fragrance: 'strong' | 'mild' | 'none' | null
   is_dud: boolean | null
   is_sample: boolean | null
@@ -122,8 +124,13 @@ export interface WishlistItem {
   name_zh: string | null
   name_en: string | null
   shade: string | null
+  shade_zh: string | null
+  shade_en: string | null
   price_type: 'normal' | 'split' | 'gift' | null
   price: number | null
+  foreign_currency: string | null
+  foreign_amount: number | null
+  exchange_rate: number | null
   url: string | null
   image_url?: string | null
   note: string | null

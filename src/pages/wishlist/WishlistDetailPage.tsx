@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ExternalLink, Pencil } from 'lucide-react'
-import { getWishlistItem, updateWishlistItem, uploadWishlistImage, getWishlistExchangeRates, addWishlistExchangeRates, deleteWishlistExchangeRate } from '@/lib/supabase/wishlist'
+import { Copy, ExternalLink, Pencil } from 'lucide-react'
+import { createWishlistItem, getWishlistItem, getWishlistExchangeRates, addWishlistExchangeRates, deleteWishlistExchangeRate } from '@/lib/supabase/wishlist'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { CollapsibleNote } from '@/components/ui/AutoTextarea'
 import { ExchangeRatePanel, ExchangeRateHistory } from '@/components/ui/ExchangeRatePanel'
-import { WishForm, type WishFormData } from './WishForm'
+import { formatTwdWithForeign } from '@/utils/currency'
 import { useToast } from '@/components/ui/Toast'
 import type { WishlistItem, WishlistExchangeRate } from '@/types/database'
 
@@ -34,7 +34,7 @@ export default function WishlistDetailPage() {
   const { showToast } = useToast()
   const [item, setItem] = useState<WishlistItem | null>(null)
   const [loading, setLoading] = useState(true)
-  const [editing, setEditing] = useState(false)
+  const [duplicating, setDuplicating] = useState(false)
   const [rateHistory, setRateHistory] = useState<WishlistExchangeRate[]>([])
 
   useEffect(() => {
@@ -66,30 +66,34 @@ export default function WishlistDetailPage() {
     if (!error) setRateHistory((prev) => prev.filter((h) => h.id !== rateId))
   }
 
-  async function handleEdit(data: WishFormData, imageFile: File | null, imageUrl: string | null) {
+  async function handleDuplicate() {
     if (!item) return
-    let finalImageUrl = imageUrl
-    if (imageFile) {
-      const url = await uploadWishlistImage(imageFile)
-      if (url) finalImageUrl = url
-      else showToast('圖片上傳失敗，品項仍會儲存（不含圖片）', 'error')
-    }
-    const { data: updated, error } = await updateWishlistItem(item.id, {
-      item_type:  data.item_type ?? 'makeup',
-      brand:      data.brand || null,
-      name_zh:    data.name_zh || null,
-      name_en:    data.name_en || null,
-      shade:      data.shade || null,
-      price_type: data.price_type ?? 'normal',
-      price:      data.price_type === 'gift' ? 0 : (data.price === '' ? null : Number(data.price) || null),
-      url:        data.url || null,
-      image_url:  finalImageUrl ?? undefined,
-      note:       data.note || null,
+    setDuplicating(true)
+    const { data: duplicated, error } = await createWishlistItem({
+      item_type: item.item_type,
+      brand: item.brand,
+      name_zh: item.name_zh,
+      name_en: item.name_en,
+      shade: item.shade,
+      shade_zh: item.shade_zh,
+      shade_en: item.shade_en,
+      price_type: item.price_type,
+      price: item.price,
+      foreign_currency: item.foreign_currency,
+      foreign_amount: item.foreign_amount,
+      exchange_rate: item.exchange_rate,
+      url: item.url,
+      image_url: item.image_url ?? null,
+      note: item.note,
+      is_purchased: false,
     })
-    if (error) { showToast('更新失敗', 'error'); return }
-    showToast('已更新')
-    setItem(updated)
-    setEditing(false)
+    setDuplicating(false)
+    if (error || !duplicated) {
+      showToast('複製失敗', 'error')
+      return
+    }
+    showToast('已複製，請修改色號')
+    navigate(`/my/wishlist/${duplicated.id}/edit`)
   }
 
   if (loading) {
@@ -110,46 +114,36 @@ export default function WishlistDetailPage() {
   const price = item.price_type === 'gift'
     ? '贈品'
     : item.price != null && item.price > 0
-      ? `NT$ ${item.price.toLocaleString()}`
+      ? formatTwdWithForeign({
+          amount: item.price,
+          currency: item.foreign_currency,
+          foreignAmount: item.foreign_amount,
+          exchangeRate: item.exchange_rate,
+        })
       : null
-
-  if (editing) {
-    return (
-      <div>
-        <div className="flex items-center justify-between mb-5">
-          <p className="text-sm font-semibold text-[var(--color-text)]">編輯品項</p>
-        </div>
-        <WishForm
-          defaultValues={{
-            item_type: item.item_type ?? 'makeup',
-            brand:     item.brand ?? '',
-            name_zh:   item.name_zh ?? '',
-            name_en:   item.name_en ?? '',
-            shade:     item.shade ?? '',
-            price:     item.price ?? '',
-            url:       item.url ?? '',
-            note:      item.note ?? '',
-          }}
-          defaultImageUrl={item.image_url}
-          onSubmit={handleEdit}
-          onCancel={() => setEditing(false)}
-          submitLabel="儲存"
-        />
-      </div>
-    )
-  }
 
   return (
     <div>
       <div className="flex items-center justify-between mb-5">
         <button onClick={() => navigate('/my/wishlist')} className="text-[var(--color-text-muted)] min-h-0 min-w-0 p-1 text-lg">‹</button>
-        <button
-          onClick={() => setEditing(true)}
-          className="px-4 py-2 rounded-xl border border-[var(--color-primary)] text-[var(--color-primary)] text-sm font-medium inline-flex items-center gap-1.5 min-h-0"
-        >
-          <Pencil size={14} strokeWidth={1.5} />
-          編輯
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => navigate(`/my/wishlist/${item.id}/edit`)}
+            className="px-4 py-2 rounded-xl border border-[var(--color-primary)] text-[var(--color-primary)] text-sm font-medium inline-flex items-center gap-1.5 min-h-0"
+          >
+            <Pencil size={14} strokeWidth={1.5} />
+            編輯
+          </button>
+          <button
+            onClick={handleDuplicate}
+            disabled={duplicating}
+            className="px-4 py-2 rounded-xl border border-[var(--color-border)] text-[var(--color-text-muted)] text-sm font-medium inline-flex items-center gap-1.5 min-h-0 disabled:opacity-50"
+            title="複製此項目"
+          >
+            <Copy size={14} strokeWidth={1.5} />
+            {duplicating ? '複製中…' : '複製'}
+          </button>
+        </div>
       </div>
 
       {item.image_url && (
@@ -191,7 +185,13 @@ export default function WishlistDetailPage() {
         <Row label="品牌" value={item.brand} />
         <Row label="中文品名" value={item.name_zh} />
         <Row label="原文品名" value={item.name_en} />
-        <Row label="色號" value={item.shade ? `#${item.shade}` : null} />
+        <Row
+          label="色號"
+          value={[
+            item.shade_zh ? `#${item.shade_zh}` : null,
+            item.shade_en || item.shade ? `#${item.shade_en || item.shade}` : null,
+          ].filter(Boolean).join(' / ') || null}
+        />
         <Row label="品項類型" value={itemTypeLabel(item.item_type)} />
         <Row label="價格類型" value={priceTypeLabel(item.price_type)} />
         <div className="py-3 border-b border-[var(--color-border)] last:border-0">

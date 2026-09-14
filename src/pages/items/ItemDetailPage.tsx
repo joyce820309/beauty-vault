@@ -5,6 +5,7 @@ import { DisposalReasonModal } from '@/components/ui/DisposalReasonModal'
 import { QuickClassify } from '@/components/ui/QuickClassify'
 import { CollapsibleNote } from '@/components/ui/AutoTextarea'
 import { ExchangeRatePanel, ExchangeRateHistory } from '@/components/ui/ExchangeRatePanel'
+import { formatTwdWithForeign } from '@/utils/currency'
 import { ExpiryBadge, SensitiveBadge, PriceBadge, DisposalBadge } from '@/components/ui/Badge'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { Lightbox } from '@/components/ui/Lightbox'
@@ -191,6 +192,26 @@ export default function ItemDetailPage() {
   const expiryLevel = getExpiryLevel(item.exp_date)
   const brandName = [item.brand_en, item.brand_zh].filter(Boolean).join(' / ')
   const itemName = [item.name_en, item.name_zh].filter(Boolean).join(' / ')
+  const exchangeRate = item.currency
+    ? rateHistory.find((history) => history.currency === item.currency)
+    : rateHistory[0]
+  // 優先用品項自己存的外幣換算資訊；沒有的話才退回「幣值歷史」查詢紀錄
+  // 注意：幣值歷史（ItemExchangeRate）的 rate 是「TWD → 外幣」方向，
+  // converted_amount 即為換算出的外幣金額，與 formatTwdWithForeign 預期的
+  // 「外幣 x 匯率 = TWD」方向相反，故此分支不套用共用函式，維持原本手動組字串。
+  const priceLabel = item.foreign_amount != null && item.exchange_rate != null
+    ? formatTwdWithForeign({
+        amount: item.price,
+        currency: item.currency,
+        foreignAmount: item.foreign_amount,
+        exchangeRate: item.exchange_rate,
+      })
+    : item.price != null
+      ? `NT$ ${item.price.toLocaleString()}${exchangeRate
+          ? ` (${exchangeRate.currency} ${exchangeRate.converted_amount.toLocaleString(undefined, { maximumFractionDigits: 2 })} x ${exchangeRate.rate})`
+          : ''}`
+      : null
+  const priceDisplay = priceLabel ?? '—'
 
   return (
     <div>
@@ -345,7 +366,7 @@ export default function ItemDetailPage() {
           <div className="flex justify-between">
             <span className="text-sm text-[var(--color-text-muted)]">購入金額</span>
             <span className="text-sm text-[var(--color-text)] font-medium text-right max-w-[60%]">
-              {item.price != null ? `NT$ ${item.price.toLocaleString()}` : '—'}
+              {priceDisplay}
             </span>
           </div>
           {item.price != null && (

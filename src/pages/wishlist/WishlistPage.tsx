@@ -1,21 +1,17 @@
 import { useState, useEffect, useCallback } from 'react'
 import { CollapsibleNote } from '@/components/ui/AutoTextarea'
-import { WishForm, type WishFormData } from './WishForm'
 import { Link, useNavigate } from 'react-router-dom'
 import { Plus, Trash2, ExternalLink, ShoppingBag, Check, Pencil, X, Heart, Zap, Search } from 'lucide-react'
 import {
-  getWishlist, createWishlistItem,
-  updateWishlistItem, deleteWishlistItem,
-  uploadWishlistImage,
+  getWishlist, updateWishlistItem, deleteWishlistItem,
 } from '@/lib/supabase/wishlist'
 import { getFavoriteItems, createItem } from '@/lib/supabase/items'
 import type { Item, ItemType } from '@/types/database'
 import { useToast } from '@/components/ui/Toast'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { PriceWithForeign } from '@/components/ui/PriceWithForeign'
 import type { WishlistItem } from '@/types/database'
-
-type FormData = WishFormData
 
 export default function WishlistPage() {
   const { showToast } = useToast()
@@ -23,8 +19,6 @@ export default function WishlistPage() {
   const [items, setItems] = useState<WishlistItem[]>([])
   const [favorites, setFavorites] = useState<Item[]>([])
   const [loading, setLoading] = useState(true)
-  const [showAddForm, setShowAddForm] = useState(false)
-  const [editingId, setEditingId] = useState<number | null>(null)
   const [tab, setTab] = useState<'all' | 'pending' | 'purchased' | 'favorites'>('pending')
   const [typeFilter, setTypeFilter] = useState<'all' | 'makeup' | 'skincare'>('all')
   const [search, setSearch] = useState('')
@@ -41,57 +35,6 @@ export default function WishlistPage() {
   }, [])
 
   useEffect(() => { load() }, [load])
-
-  async function handleAdd(data: FormData, imageFile: File | null, imageUrl: string | null) {
-    let finalImageUrl = imageUrl
-    if (imageFile) {
-      const url = await uploadWishlistImage(imageFile)
-      if (url) finalImageUrl = url
-      else showToast('圖片上傳失敗，品項仍會儲存（不含圖片）', 'error')
-    }
-    const { error } = await createWishlistItem({
-      item_type:    data.item_type ?? 'makeup',
-      brand:        data.brand || null,
-      name_zh:      data.name_zh || null,
-      name_en:      data.name_en || null,
-      shade:        data.shade || null,
-      price_type:   data.price_type ?? 'normal',
-      price:        data.price_type === 'gift' ? 0 : (data.price === '' ? null : Number(data.price) || null),
-      url:          data.url || null,
-      ...(finalImageUrl !== null ? { image_url: finalImageUrl } : {}),
-      note:         data.note || null,
-      is_purchased: false,
-    })
-    if (error) { showToast('新增失敗', 'error'); return }
-    showToast('已加入採購清單')
-    setShowAddForm(false)
-    await load()
-  }
-
-  async function handleEdit(id: number, data: FormData, imageFile: File | null, imageUrl: string | null) {
-    let finalImageUrl = imageUrl
-    if (imageFile) {
-      const url = await uploadWishlistImage(imageFile)
-      if (url) finalImageUrl = url
-      else showToast('圖片上傳失敗，品項仍會儲存（不含圖片）', 'error')
-    }
-    const { error } = await updateWishlistItem(id, {
-      item_type:  data.item_type ?? 'makeup',
-      brand:      data.brand || null,
-      name_zh:    data.name_zh || null,
-      name_en:    data.name_en || null,
-      shade:      data.shade || null,
-      price_type: data.price_type ?? 'normal',
-      price:      data.price_type === 'gift' ? 0 : (data.price === '' ? null : Number(data.price) || null),
-      url:        data.url || null,
-      image_url:  finalImageUrl ?? undefined,
-      note:       data.note || null,
-    })
-    if (error) { showToast('更新失敗', 'error'); return }
-    showToast('已更新')
-    setEditingId(null)
-    await load()
-  }
 
   async function togglePurchased(item: WishlistItem) {
     const newPurchased = !item.is_purchased
@@ -110,8 +53,8 @@ export default function WishlistPage() {
       brand_zh:         null,
       name_zh:          item.name_zh,
       name_en:          item.name_en,
-      shade_en:         item.shade || null,
-      shade_zh:         null,
+      shade_en:         item.shade_en || item.shade || null,
+      shade_zh:         item.shade_zh || null,
       category:         null,
       subcategory:      null,
       mfg_date:         null,
@@ -128,6 +71,8 @@ export default function WishlistPage() {
       disposal_status:  'kept',
       disposal_reason:  null,
       currency:         null,
+      foreign_amount:   item.foreign_amount ?? null,
+      exchange_rate:    item.exchange_rate ?? null,
       fragrance:        null,
       is_dud:           false,
       is_sample:        false,
@@ -157,7 +102,7 @@ export default function WishlistPage() {
     if (typeFilter !== 'all' && (i.item_type ?? 'makeup') !== typeFilter) return false
     if (search.trim()) {
       const q = search.trim().toLowerCase()
-      const fields = [i.brand, i.name_zh, i.name_en, i.shade, i.price != null ? String(i.price) : null]
+      const fields = [i.brand, i.name_zh, i.name_en, i.shade_zh, i.shade_en, i.shade, i.price != null ? String(i.price) : null]
       if (!fields.some((f) => f?.toLowerCase().includes(q))) return false
     }
     if (tab === 'pending') return !i.is_purchased
@@ -180,28 +125,14 @@ export default function WishlistPage() {
       {/* 標題列 */}
       <div className="flex items-center justify-between mb-5">
         <h2 className="text-xl font-semibold text-[var(--color-text)]">採購清單</h2>
-        {!showAddForm && (
-          <button
-            onClick={() => setShowAddForm(true)}
+        <button
+            onClick={() => navigate('/my/wishlist/new')}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[var(--color-primary)] text-white text-sm font-medium min-h-0"
           >
             <Plus size={15} strokeWidth={2} />
             新增
           </button>
-        )}
       </div>
-
-      {/* 新增表單 */}
-      {showAddForm && (
-        <div className="bg-[var(--color-bg-muted)] rounded-2xl p-4 mb-5">
-          <p className="text-sm font-semibold text-[var(--color-text)] mb-4">新增品項</p>
-          <WishForm
-            onSubmit={handleAdd}
-            onCancel={() => setShowAddForm(false)}
-            submitLabel="加入清單"
-          />
-        </div>
-      )}
 
       {/* 搜尋列 */}
       <div className="relative mb-3">
@@ -315,7 +246,6 @@ export default function WishlistPage() {
       ) : tab !== 'favorites' && (
         <div className="space-y-3">
           {filtered.map((item) => {
-            const isEditing = editingId === item.id
             const displayName = item.name_zh || item.name_en || '（未命名）'
             const subName = item.name_zh && item.name_en ? item.name_en : null
 
@@ -326,33 +256,7 @@ export default function WishlistPage() {
                   item.is_purchased ? 'border-[var(--color-border)] opacity-60' : 'border-[var(--color-border)]'
                 }`}
               >
-                {isEditing ? (
-                  <div className="p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <p className="text-sm font-semibold text-[var(--color-text)]">編輯品項</p>
-                      <button onClick={() => setEditingId(null)} className="min-h-0 min-w-0 p-1 text-[var(--color-text-muted)]">
-                        <X size={16} strokeWidth={1.5} />
-                      </button>
-                    </div>
-                    <WishForm
-                      defaultValues={{
-                        item_type: item.item_type ?? 'makeup',
-                        brand:     item.brand ?? '',
-                        name_zh:   item.name_zh ?? '',
-                        name_en:   item.name_en ?? '',
-                        shade:     item.shade ?? '',
-                        price:     item.price ?? '',
-                        url:       item.url ?? '',
-                        note:      item.note ?? '',
-                      }}
-                      defaultImageUrl={item.image_url}
-                      onSubmit={(data, imageFile, imageUrl) => handleEdit(item.id, data, imageFile, imageUrl)}
-                      onCancel={() => setEditingId(null)}
-                      submitLabel="儲存"
-                    />
-                  </div>
-                ) : (
-                  <>
+                <>
                     {/* 品項資訊 */}
                     <div
                       role="button"
@@ -378,9 +282,9 @@ export default function WishlistPage() {
                             <p className="text-xs text-[var(--color-text-muted)] mt-0.5">{subName}</p>
                           )}
                           <div className="flex flex-wrap items-center gap-2 mt-1.5">
-                            {item.shade && (
+                            {(item.shade_zh || item.shade_en || item.shade) && (
                               <span className="text-[11px] px-2 py-0.5 rounded-full bg-[var(--color-primary-light)] text-[var(--color-primary-dark)]">
-                                {item.shade}
+                                {[item.shade_zh, item.shade_en || item.shade].filter(Boolean).join(' / ')}
                               </span>
                             )}
                             {item.price_type === 'gift' && (
@@ -394,9 +298,13 @@ export default function WishlistPage() {
                               </span>
                             )}
                             {item.price_type !== 'gift' && item.price != null && item.price > 0 && (
-                              <span className="text-xs text-[var(--color-text-muted)]">
-                                NT$ {item.price.toLocaleString()}
-                              </span>
+                              <PriceWithForeign
+                                className="text-xs text-[var(--color-text-muted)]"
+                                amount={item.price}
+                                currency={item.foreign_currency}
+                                foreignAmount={item.foreign_amount}
+                                exchangeRate={item.exchange_rate}
+                              />
                             )}
                             {item.url && (
                               <a
@@ -442,7 +350,7 @@ export default function WishlistPage() {
                       <div className="w-px bg-[var(--color-border)]" />
 
                       <button
-                        onClick={() => setEditingId(item.id)}
+                        onClick={() => navigate(`/my/wishlist/${item.id}/edit`)}
                         className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-[var(--color-text-muted)] hover:bg-[var(--color-bg-muted)] transition-colors min-h-0"
                       >
                         <Pencil size={12} strokeWidth={1.5} />
@@ -459,8 +367,7 @@ export default function WishlistPage() {
                         刪除
                       </button>
                     </div>
-                  </>
-                )}
+                </>
               </div>
             )
           })}

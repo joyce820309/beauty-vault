@@ -14,9 +14,13 @@ export const wishSchema = z.object({
   brand:      z.string().optional(),
   name_zh:    z.string().optional(),
   name_en:    z.string().optional(),
-  shade:      z.string().optional(),
+  shade_zh:   z.string().optional(),
+  shade_en:   z.string().optional(),
   price_type: z.enum(['normal', 'split', 'gift']).optional(),
   price:      z.coerce.number().int().nonnegative().optional().or(z.literal('')),
+  foreign_currency: z.string().optional(),
+  foreign_amount: z.coerce.number().positive().optional().or(z.literal('')),
+  exchange_rate: z.coerce.number().positive().optional().or(z.literal('')),
   url:        z.string().optional(),
   note:       z.string().optional(),
 }).refine(
@@ -77,6 +81,7 @@ export function WishForm({
   const [showCurrency, setShowCurrency] = useState(false)
   const [foreignAmt, setForeignAmt] = useState('')
   const [fxRate, setFxRate] = useState('')
+  const [selectedCurrency, setSelectedCurrency] = useState('')
   const [imageUrl, setImageUrl] = useState<string | null>(defaultImageUrl ?? null)
   const [imageFile, setImageFile] = useState<File | null>(null)
   const { register, control, handleSubmit, watch, setValue, formState: { errors } } = useForm<WishFormData>({
@@ -159,9 +164,14 @@ export function WishForm({
         )}
       </div>
 
-      <Field label="色號">
-        <Input {...register('shade')} placeholder="選填" />
-      </Field>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Field label="中文色號">
+          <Input {...register('shade_zh')} placeholder="選填" />
+        </Field>
+        <Field label="原文色號">
+          <Input {...register('shade_en')} placeholder="英 / 日 / 韓文" />
+        </Field>
+      </div>
 
       {/* 預算 + 類型 */}
       <div className="space-y-2">
@@ -205,7 +215,7 @@ export function WishForm({
                     { label: '🇬🇧 GBP', rate: '41' },
                     { label: '🇭🇰 HKD', rate: '4.1' },
                   ].map((c) => (
-                    <button key={c.label} type="button" onClick={() => setFxRate(c.rate)}
+                    <button key={c.label} type="button" onClick={() => { setSelectedCurrency(c.label.split(' ').pop() ?? ''); setFxRate(c.rate) }}
                       className={`px-2 py-1 rounded-lg text-xs border transition-colors min-h-0 ${
                         fxRate === c.rate ? 'bg-[var(--color-primary)] text-white border-[var(--color-primary)]'
                         : 'bg-[var(--color-bg-card)] text-[var(--color-text)] border-[var(--color-border)]'
@@ -222,8 +232,14 @@ export function WishForm({
                   <input type="number" value={fxRate} onChange={(e) => setFxRate(e.target.value)}
                     placeholder="匯率" className="w-16 px-2 py-2 rounded-xl border border-[var(--color-border)] text-sm bg-[var(--color-bg-card)] text-[var(--color-text)] focus:outline-none"
                   />
-                  <button type="button" disabled={!foreignAmt || !fxRate}
-                    onClick={() => { setValue('price', Math.round(Number(foreignAmt) * Number(fxRate))); setShowCurrency(false); setForeignAmt('') }}
+                  <button type="button" disabled={!foreignAmt || !fxRate || !selectedCurrency}
+                    onClick={() => {
+                      setValue('price', Math.round(Number(foreignAmt) * Number(fxRate)))
+                      setValue('foreign_currency', selectedCurrency)
+                      setValue('foreign_amount', Number(foreignAmt))
+                      setValue('exchange_rate', Number(fxRate))
+                      setShowCurrency(false)
+                    }}
                     className="px-3 py-2 rounded-xl bg-[var(--color-primary)] text-white text-xs font-medium min-h-0 disabled:opacity-40"
                   >填入</button>
                 </div>
