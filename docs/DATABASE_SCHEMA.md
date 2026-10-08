@@ -4,6 +4,18 @@
 
 ---
 
+## 存取控制（RLS / ownership）
+
+> migration `031_user_ownership_and_rls.sql` 起啟用。
+
+- 私人資料表均有 `user_id UUID NOT NULL REFERENCES auth.users(id)`，預設值 `auth.uid()`（前端 insert 不需帶入，DB 自動填入登入者）。
+- 私人資料表啟用 RLS，政策為 owner-only：`user_id = auth.uid()`（SELECT/INSERT/UPDATE/DELETE 皆限本人）。
+- `categories`、`channels` 為全域參考資料：僅 `authenticated` 可讀寫，`anon` 全擋。
+- Edge Function 以 `service_role` 執行，會 bypass RLS。
+- 下列各表的 `user_id` 欄位不另列於下方欄位表。
+
+---
+
 ## items — 品項
 
 | 欄位              | 型別           | 說明                                       |
