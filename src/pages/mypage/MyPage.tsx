@@ -11,8 +11,11 @@ import {
   Download,
   Bell,
   FileText,
+  SpellCheck,
+  LogOut,
 } from "lucide-react";
 import { useInstallPrompt } from "@/hooks/useInstallPrompt";
+import { useAuth } from "@/contexts/AuthContext";
 import type { LucideIcon } from "lucide-react";
 
 const RECORDS: { to: string; label: string; Icon: LucideIcon }[] = [
@@ -25,6 +28,7 @@ const RECORDS: { to: string; label: string; Icon: LucideIcon }[] = [
 const SETTINGS: { to: string; label: string; Icon: LucideIcon }[] = [
   { to: "/my/categories",   label: "類別管理",  Icon: Tag },
   { to: "/my/channels",     label: "通路管理",  Icon: Activity },
+  { to: "/my/suggestions",  label: "建議詞管理", Icon: SpellCheck },
   { to: "/my/notifications",label: "推播通知",  Icon: Bell },
   { to: "/my/export",       label: "匯出文件",  Icon: FileText },
   { to: "/my/profile",      label: "個人檔案",  Icon: User },
@@ -55,6 +59,7 @@ function MenuGroup({ title, items }: { title: string; items: typeof RECORDS }) {
 
 export default function MyPage() {
   const { prompt, install } = useInstallPrompt()
+  const { user, signOut } = useAuth()
 
   return (
     <div>
@@ -81,6 +86,19 @@ export default function MyPage() {
 
         <MenuGroup title="紀錄" items={RECORDS} />
         <MenuGroup title="設定" items={SETTINGS} />
+
+        <div>
+          {user?.email && (
+            <p className="mb-2 px-1 text-xs text-[var(--color-text-muted)]">登入帳號：{user.email}</p>
+          )}
+          <button
+            onClick={() => { void signOut() }}
+            className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg-card)] transition-opacity hover:opacity-80"
+          >
+            <LogOut size={17} strokeWidth={1.5} className="shrink-0" style={{ color: 'var(--color-danger)' }} />
+            <span className="text-sm font-medium" style={{ color: 'var(--color-danger)' }}>登出</span>
+          </button>
+        </div>
       </div>
     </div>
   );

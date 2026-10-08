@@ -24,6 +24,32 @@ export async function deleteItem(id: number) {
   return supabase.from('items').delete().eq('id', id)
 }
 
+export async function uploadItemImage(file: File): Promise<string | null> {
+  const ext = file.name.split('.').pop()
+  const path = `items/${Date.now()}_${Math.random().toString(36).slice(2, 7)}.${ext}`
+  const compressed = await compressImage(file)
+  const { error } = await supabase.storage.from('product-images').upload(path, compressed)
+  if (error) return null
+  const { data } = supabase.storage.from('product-images').getPublicUrl(path)
+  return data.publicUrl
+}
+
+function compressImage(file: File): Promise<Blob> {
+  return new Promise((resolve) => {
+    const img = new Image()
+    img.onload = () => {
+      const canvas = document.createElement('canvas')
+      const maxSize = 800
+      const ratio = Math.min(maxSize / img.width, maxSize / img.height, 1)
+      canvas.width = img.width * ratio
+      canvas.height = img.height * ratio
+      canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height)
+      canvas.toBlob((blob) => resolve(blob!), 'image/jpeg', 0.8)
+    }
+    img.src = URL.createObjectURL(file)
+  })
+}
+
 export async function getItemExchangeRates(itemId: number) {
   return supabase
     .from('item_exchange_rates')
@@ -76,7 +102,6 @@ export async function getDistinctBrands() {
   return supabase
     .from('items')
     .select('brand_zh, brand_en')
-    .not('brand_en', 'is', null)
 }
 
 export async function getDistinctNames() {
@@ -100,6 +125,63 @@ export async function getDistinctBrandZh() {
 
 export async function getDistinctNameZh() {
   return supabase.from('items').select('name_zh').not('name_zh', 'is', null).neq('name_zh', '')
+}
+
+type SuggestionKind = 'brand' | 'name_en_full' | 'name_zh'
+
+function splitOriginalNameSuggestion(value: string) {
+  const separator = ' — '
+  const separatorIndex = value.indexOf(separator)
+  if (separatorIndex < 0) return { brand: null, name: value }
+  return {
+    brand: value.slice(0, separatorIndex),
+    name: value.slice(separatorIndex + separator.length),
+  }
+}
+
+export async function getSuggestionReferenceCount(kind: SuggestionKind, value: string): Promise<number> {
+  if (kind === 'brand') {
+    const [brandEn, brandZh] = await Promise.all([
+      supabase.from('items').select('id', { count: 'exact', head: true }).eq('brand_en', value),
+      supabase.from('items').select('id', { count: 'exact', head: true }).eq('brand_zh', value),
+    ])
+    if (brandEn.error) throw brandEn.error
+    if (brandZh.error) throw brandZh.error
+    return (brandEn.count ?? 0) + (brandZh.count ?? 0)
+  }
+
+  if (kind === 'name_zh') {
+    const result = await supabase.from('items').select('id', { count: 'exact', head: true }).eq('name_zh', value)
+    if (result.error) throw result.error
+    return result.count ?? 0
+  }
+
+  const { brand, name } = splitOriginalNameSuggestion(value)
+  let query = supabase.from('items').select('id', { count: 'exact', head: true }).eq('name_en', name)
+  if (brand) query = query.eq('brand_en', brand)
+  const result = await query
+  if (result.error) throw result.error
+  return result.count ?? 0
+}
+
+export async function deleteSuggestionFromItems(kind: SuggestionKind, value: string) {
+  if (kind === 'brand') {
+    const brandEn = await supabase.from('items').update({ brand_en: null }).eq('brand_en', value).select('id')
+    if (brandEn.error) return { count: 0, error: brandEn.error }
+    const brandZh = await supabase.from('items').update({ brand_zh: null }).eq('brand_zh', value).select('id')
+    return { count: (brandEn.data?.length ?? 0) + (brandZh.data?.length ?? 0), error: brandZh.error }
+  }
+
+  if (kind === 'name_zh') {
+    const result = await supabase.from('items').update({ name_zh: null }).eq('name_zh', value).select('id')
+    return { count: result.data?.length ?? 0, error: result.error }
+  }
+
+  const { brand, name } = splitOriginalNameSuggestion(value)
+  let query = supabase.from('items').update({ name_en: null }).eq('name_en', name)
+  if (brand) query = query.eq('brand_en', brand)
+  const result = await query.select('id')
+  return { count: result.data?.length ?? 0, error: result.error }
 }
 
 export async function getDistinctShadeEn() {

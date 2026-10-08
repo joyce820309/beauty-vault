@@ -50,6 +50,9 @@ export interface Item {
   price: number | null
   purchase_date: string | null
   image_url: string | null
+  image_urls: string[]
+  swatch_color: string | null
+  swatch_colors: string[]
   note: string | null
   rating: number | null
   review: string | null
@@ -233,6 +236,10 @@ export interface MakeupTheme {
   id: number
   name: string
   note: string | null
+  image_urls: string[] | null
+  eye_tip: string | null
+  cheek_tip: string | null
+  lip_tip: string | null
   created_at: string
   updated_at: string
 }
@@ -245,6 +252,7 @@ export interface MakeupThemeSlot {
   custom_text: string | null
   shade_override: string | null
   lip_base_bool: boolean | null
+  sort_order: number
   created_at: string
 }
 

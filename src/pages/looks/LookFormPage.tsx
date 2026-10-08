@@ -1,14 +1,17 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ChevronLeft, Search, X } from 'lucide-react'
-import { getItems } from '@/lib/supabase/items'
+import { ChevronLeft, Search, X, Plus, Sparkles, Camera, Palette } from 'lucide-react'
+import { getItems, updateItem, uploadItemImage } from '@/lib/supabase/items'
 import { createMakeupTheme, updateMakeupTheme, getMakeupThemeById, upsertThemeSlots } from '@/lib/supabase/makeupThemes'
+import { useToast } from '@/components/ui/Toast'
 import type { Item, LookSlot, MakeupThemeSlot } from '@/types/database'
 
 // ─── 槽位定義 ─────────────────────────────────────────────────────────────────
 const SLOT_GROUPS = [
   {
     label: '眼妝',
+    tipKey: 'eye_tip' as const,
+    tipPlaceholder: '小訣竅：例如先點塗再暈開才不會卡粉…',
     slots: [
       { key: 'eye_upper' as LookSlot, label: '上眼影', categories: ['eyeshadow'] },
       { key: 'eye_lower' as LookSlot, label: '下眼影', categories: ['eyeshadow', 'eyeliner'] },
@@ -16,6 +19,8 @@ const SLOT_GROUPS = [
   },
   {
     label: '頰妝',
+    tipKey: 'cheek_tip' as const,
+    tipPlaceholder: '小訣竅：例如用打圈方式暈染更自然…',
     slots: [
       { key: 'cheek_expand'  as LookSlot, label: '膨脹色', categories: ['blush', 'highlighter'] },
       { key: 'cheek_vibe'    as LookSlot, label: '氛圍色', categories: ['blush'] },
@@ -24,20 +29,30 @@ const SLOT_GROUPS = [
   },
   {
     label: '唇妝',
+    tipKey: 'lip_tip' as const,
+    tipPlaceholder: '小訣竅：例如按壓上色比直接塗抹更持久…',
     slots: [
-      { key: 'lip_base'   as LookSlot, label: '打底',   categories: [], isBoolean: true },
+      { key: 'lip_base'   as LookSlot, label: '打底',   categories: ['lip'] },
       { key: 'lip_liner'  as LookSlot, label: '唇線筆', categories: ['lip'] },
-      { key: 'lip_color'  as LookSlot, label: '唇彩',   categories: ['lip'] },
+      { key: 'lip_color'  as LookSlot, label: '唇彩',   categories: ['lip'], repeatable: true },
     ],
   },
 ] as const
 
 // ─── 品項顯示名稱 ─────────────────────────────────────────────────────────────
+// itemLabel：含色號，用於下拉清單與輸入框顯示
 function itemLabel(item: Item): string {
   const brand = item.brand_zh || item.brand_en || ''
   const name = item.name_zh || item.name_en || ''
   const shade = item.shade_zh || item.shade_en || ''
   return [brand, name, shade ? `＃${shade}` : ''].filter(Boolean).join(' ')
+}
+
+// itemNameOnly：不含色號，用於儲存 custom_text（色號另存於 shade_override，避免顯示時重複）
+function itemNameOnly(item: Item): string {
+  const brand = item.brand_zh || item.brand_en || ''
+  const name = item.name_zh || item.name_en || ''
+  return [brand, name].filter(Boolean).join(' ')
 }
 
 function itemShade(item: Item): string {
@@ -49,25 +64,147 @@ interface SlotState {
   item: Item | null
   customText: string
   shadeOverride: string
-  lipBaseBool: boolean
 }
 
 function emptySlot(): SlotState {
-  return { item: null, customText: '', shadeOverride: '', lipBaseBool: false }
+  return { item: null, customText: '', shadeOverride: '' }
+}
+
+// ─── 補上傳照片／選色票 小選單 ─────────────────────────────────────────────────
+function SwatchEditPopover({
+  item,
+  onClose,
+  onItemUpdated,
+}: {
+  item: Item
+  onClose: () => void
+  onItemUpdated: (updated: Item) => void
+}) {
+  const { showToast } = useToast()
+  const [uploading, setUploading] = useState(false)
+  const popRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function onClick(e: MouseEvent) {
+      if (popRef.current && !popRef.current.contains(e.target as Node)) onClose()
+    }
+    document.addEventListener('mousedown', onClick)
+    return () => document.removeEventListener('mousedown', onClick)
+  }, [onClose])
+
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    setUploading(true)
+    const url = await uploadItemImage(file)
+    setUploading(false)
+    if (!url) { showToast('圖片上傳失敗', 'error'); return }
+    const nextUrls = [...(item.image_urls ?? []), url]
+    const { data, error } = await updateItem(item.id, { image_url: nextUrls[0], image_urls: nextUrls })
+    if (error || !data) { showToast('更新品項失敗', 'error'); return }
+    onItemUpdated(data)
+    showToast('已新增品項照片')
+    onClose()
+  }
+
+  async function saveColor(color: string) {
+    if (!/^#[0-9a-fA-F]{6}$/.test(color)) { showToast('請輸入正確的 HEX 色碼', 'error'); return }
+    const nextColors = [...(item.swatch_colors ?? []), color]
+    const { data, error } = await updateItem(item.id, { swatch_color: nextColors[0] ?? null, swatch_colors: nextColors })
+    if (error || !data) { showToast('更新色票失敗', 'error'); return }
+    onItemUpdated(data)
+    showToast('已新增色票')
+  }
+
+  async function removeColor(index: number) {
+    const current = item.swatch_colors?.length ? item.swatch_colors : item.swatch_color ? [item.swatch_color] : []
+    const nextColors = current.filter((_, i) => i !== index)
+    const { data, error } = await updateItem(item.id, { swatch_color: nextColors[0] ?? null, swatch_colors: nextColors })
+    if (error || !data) { showToast('刪除色票失敗', 'error'); return }
+    onItemUpdated(data)
+    showToast('已刪除色票')
+  }
+
+  const existingColors = item.swatch_colors?.length ? item.swatch_colors : item.swatch_color ? [item.swatch_color] : []
+
+  return (
+    <div
+      ref={popRef}
+      className="absolute z-50 top-full left-0 mt-1 w-56 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-card)] shadow-lg overflow-hidden"
+    >
+      <label className="flex items-center gap-2 px-3 py-2.5 text-xs text-[var(--color-text)] hover:bg-[var(--color-bg-muted)] transition-colors cursor-pointer border-b border-[var(--color-border)]">
+        <Camera size={14} strokeWidth={1.5} className="text-[var(--color-text-muted)]" />
+        {uploading ? '上傳中…' : '新增照片'}
+        <input type="file" accept="image/*" className="hidden" disabled={uploading} onChange={handleFile} />
+      </label>
+
+      <div className="px-3 py-2.5 space-y-2">
+        {/* 既有色票：此品項已設定過的色票，hover 可刪除 */}
+        {existingColors.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {existingColors.map((c, i) => (
+              <button
+                key={i}
+                type="button"
+                title={`${c}（點擊刪除）`}
+                onClick={() => removeColor(i)}
+                className="group relative w-5 h-5 rounded-full shrink-0 shadow-[0_0_0_1px_var(--color-border)] min-h-0 min-w-0"
+                style={{ background: c }}
+              >
+                <span className="absolute inset-0 rounded-full bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center">
+                  <X size={10} strokeWidth={2.5} className="text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+        {/* 新增色票：HEX 文字輸入，或點色盤圖示用選色器輔助選色 */}
+        <div className="flex items-center gap-1.5">
+          <label className="relative shrink-0 text-[var(--color-text-muted)] hover:text-[var(--color-primary)] transition-colors cursor-pointer">
+            <Palette size={13} strokeWidth={1.5} />
+            <input
+              type="color"
+              defaultValue="#C4768A"
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+              onChange={async (e) => {
+                await saveColor(e.target.value)
+              }}
+            />
+          </label>
+          <input
+            type="text"
+            placeholder="新增 HEX，例如 C4768A"
+            className="flex-1 min-w-0 px-2 py-1.5 rounded-lg border border-[var(--color-border)] text-xs text-[var(--color-text)] bg-[var(--color-bg-card)] focus:outline-none focus:border-[var(--color-primary)]"
+            onKeyDown={async (e) => {
+              if (e.key !== 'Enter') return
+              const raw = e.currentTarget.value.trim()
+              const hex = raw.startsWith('#') ? raw : `#${raw}`
+              await saveColor(hex)
+              e.currentTarget.value = ''
+            }}
+          />
+        </div>
+      </div>
+    </div>
+  )
 }
 
 // ─── 品項搜尋下拉 ─────────────────────────────────────────────────────────────
 interface ItemPickerProps {
+  label: string
   items: Item[]
   categories: readonly string[]
   value: SlotState
   onChange: (v: SlotState) => void
   placeholder?: string
+  onItemUpdated?: (updated: Item) => void
 }
 
-function ItemPicker({ items, categories, value, onChange, placeholder }: ItemPickerProps) {
+function ItemPicker({ label, items, categories, value, onChange, placeholder, onItemUpdated }: ItemPickerProps) {
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState(false)
+  const [showSwatchMenu, setShowSwatchMenu] = useState(false)
   const wrapRef = useRef<HTMLDivElement>(null)
 
   const filtered = items
@@ -95,7 +232,7 @@ function ItemPicker({ items, categories, value, onChange, placeholder }: ItemPic
   }, [])
 
   function selectItem(item: Item) {
-    onChange({ ...value, item, customText: itemLabel(item), shadeOverride: itemShade(item) })
+    onChange({ ...value, item, customText: itemNameOnly(item), shadeOverride: itemShade(item) })
     setQuery('')
     setOpen(false)
   }
@@ -105,69 +242,133 @@ function ItemPicker({ items, categories, value, onChange, placeholder }: ItemPic
     setQuery('')
   }
 
+  const thumbImage = value.item?.image_urls?.[0] || value.item?.image_url || null
+  const thumbColors = value.item?.swatch_colors?.length
+    ? value.item.swatch_colors
+    : value.item?.swatch_color ? [value.item.swatch_color] : []
+
   return (
-    <div ref={wrapRef} className="space-y-1.5">
-      {/* 品項輸入 */}
-      <div className="relative">
-        <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] pointer-events-none" />
-        <input
-          type="text"
-          value={value.item ? itemLabel(value.item) : query}
-          onChange={e => {
-            if (value.item) clearItem()
-            setQuery(e.target.value)
-            setOpen(true)
-          }}
-          onFocus={() => setOpen(true)}
-          placeholder={placeholder ?? '搜尋品項…'}
-          className="w-full pl-7 pr-7 py-2 rounded-lg border border-[var(--color-border)] text-xs text-[var(--color-text)] bg-[var(--color-bg-card)] focus:outline-none focus:border-[var(--color-primary)]"
-        />
-        {(value.item || query) && (
+    <div ref={wrapRef}>
+      {/* 槽位標題 + 色票（色票顯示在標題右側空白處，點擊可管理） */}
+      <div className="relative flex items-center justify-between gap-2 mb-1.5">
+        {label ? <label className="text-sm font-medium text-[var(--color-text)]">{label}</label> : <span />}
+        {value.item && (
           <button
             type="button"
-            onClick={clearItem}
-            className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] min-h-0 p-0"
+            onClick={() => setShowSwatchMenu(v => !v)}
+            className="flex items-center min-h-0 min-w-0 ml-auto"
           >
-            <X size={13} />
+            {thumbColors.length > 0 ? (
+              <div className="flex items-center">
+                {thumbColors.slice(0, 5).map((color, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      background: color,
+                      marginLeft: i === 0 ? 0 : -6,
+                      zIndex: thumbColors.length - i,
+                    }}
+                    className="w-5 h-5 rounded-full shrink-0 shadow-[0_0_0_1.5px_var(--color-bg-card)]"
+                  />
+                ))}
+              </div>
+            ) : (
+              <span className="flex items-center gap-1 text-[11px] text-[var(--color-text-muted)]">
+                <Palette size={12} strokeWidth={1.5} />
+                新增色票
+              </span>
+            )}
           </button>
         )}
-        {/* 下拉清單 */}
-        {open && !value.item && (
-          <div className="absolute z-50 top-full left-0 right-0 mt-1 max-h-48 overflow-y-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-card)] shadow-lg">
-            {filtered.length === 0 ? (
-              <p className="px-3 py-2.5 text-xs text-[var(--color-text-muted)]">無符合品項</p>
-            ) : (
-              filtered.map(item => (
-                <button
-                  key={item.id}
-                  type="button"
-                  onMouseDown={() => selectItem(item)}
-                  className="w-full text-left px-3 py-2 text-xs text-[var(--color-text)] hover:bg-[var(--color-primary-light)] transition-colors min-h-0"
-                >
-                  {itemLabel(item)}
-                </button>
-              ))
-            )}
-          </div>
+        {showSwatchMenu && value.item && (
+          <SwatchEditPopover
+            item={value.item}
+            onClose={() => setShowSwatchMenu(false)}
+            onItemUpdated={(updated) => {
+              onItemUpdated?.(updated)
+              onChange({ ...value, item: updated })
+            }}
+          />
         )}
       </div>
-      {/* 色號覆蓋欄位 */}
-      {!value.item && (
+      {/* 已選品項：商品照片縮圖（位置固定，不受色票影響） */}
+      {value.item && (
+        <div className="flex items-center gap-2.5 mb-1.5">
+          <div className="w-16 h-16 rounded-xl overflow-hidden shrink-0 bg-[var(--color-bg-muted)] flex items-center justify-center shadow-[0_0_0_1px_var(--color-border)]">
+            {thumbImage ? (
+              <img src={thumbImage} alt="" className="w-full h-full object-cover" />
+            ) : (
+              <Sparkles size={20} strokeWidth={1.5} className="text-[var(--color-text-muted)]" />
+            )}
+          </div>
+          <p className="flex-1 min-w-0 text-xs text-[var(--color-text)] font-medium leading-snug">
+            {itemLabel(value.item)}
+          </p>
+        </div>
+      )}
+      <div className="space-y-1.5">
+        {/* 品項輸入 */}
+        <div className="relative">
+          <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] pointer-events-none" />
+          <input
+            type="text"
+            value={value.item ? itemLabel(value.item) : query}
+            onChange={e => {
+              if (value.item) clearItem()
+              setQuery(e.target.value)
+              setOpen(true)
+            }}
+            onFocus={() => setOpen(true)}
+            placeholder={placeholder ?? '搜尋品項…'}
+            className="w-full pl-7 pr-7 py-2 rounded-lg border border-[var(--color-border)] text-xs text-[var(--color-text)] bg-[var(--color-bg-card)] focus:outline-none focus:border-[var(--color-primary)]"
+          />
+          {(value.item || query) && (
+            <button
+              type="button"
+              onClick={clearItem}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] min-h-0 p-0"
+            >
+              <X size={13} />
+            </button>
+          )}
+          {/* 下拉清單 */}
+          {open && !value.item && (
+            <div className="absolute z-50 top-full left-0 right-0 mt-1 max-h-48 overflow-y-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-card)] shadow-lg">
+              {filtered.length === 0 ? (
+                <p className="px-3 py-2.5 text-xs text-[var(--color-text-muted)]">無符合品項</p>
+              ) : (
+                filtered.map(item => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onMouseDown={() => selectItem(item)}
+                    className="w-full text-left px-3 py-2 text-xs text-[var(--color-text)] hover:bg-[var(--color-primary-light)] transition-colors min-h-0"
+                  >
+                    {itemLabel(item)}
+                  </button>
+                ))
+              )}
+            </div>
+          )}
+        </div>
+        {/* 色號覆蓋欄位 */}
+        {!value.item && (
+          <input
+            type="text"
+            value={value.customText}
+            onChange={e => onChange({ ...value, customText: e.target.value })}
+            placeholder="或直接輸入品項名稱"
+            className="w-full px-2.5 py-1.5 rounded-lg border border-[var(--color-border)] text-xs text-[var(--color-text)] bg-[var(--color-bg-card)] focus:outline-none focus:border-[var(--color-primary)]"
+          />
+        )}
         <input
           type="text"
-          value={value.customText}
-          onChange={e => onChange({ ...value, customText: e.target.value })}
-          placeholder="或直接輸入品項名稱"
+          value={value.shadeOverride}
+          onChange={e => onChange({ ...value, shadeOverride: e.target.value })}
+          placeholder="色號（可修改）"
           className="w-full px-2.5 py-1.5 rounded-lg border border-[var(--color-border)] text-xs text-[var(--color-text)] bg-[var(--color-bg-card)] focus:outline-none focus:border-[var(--color-primary)]"
         />
-      )}
-      <input
-        type="text"
-        value={value.shadeOverride}
-        onChange={e => onChange({ ...value, shadeOverride: e.target.value })}
-        placeholder="色號（可修改）"
-        className="w-full px-2.5 py-1.5 rounded-lg border border-[var(--color-border)] text-xs text-[var(--color-text)] bg-[var(--color-bg-card)] focus:outline-none focus:border-[var(--color-primary)]"
-      />
+      </div>
     </div>
   )
 }
@@ -181,7 +382,10 @@ export default function LookFormPage() {
   const [allItems, setAllItems] = useState<Item[]>([])
   const [name, setName] = useState('')
   const [note, setNote] = useState('')
-  const [slots, setSlots] = useState<Record<LookSlot, SlotState>>({
+  const [tips, setTips] = useState<{ eye_tip: string; cheek_tip: string; lip_tip: string }>({
+    eye_tip: '', cheek_tip: '', lip_tip: '',
+  })
+  const [slots, setSlots] = useState<Record<Exclude<LookSlot, 'lip_color'>, SlotState>>({
     eye_upper:      emptySlot(),
     eye_lower:      emptySlot(),
     cheek_expand:   emptySlot(),
@@ -189,41 +393,77 @@ export default function LookFormPage() {
     cheek_contour:  emptySlot(),
     lip_base:       emptySlot(),
     lip_liner:      emptySlot(),
-    lip_color:      emptySlot(),
   })
+  // 唇彩支援疊擦，可有多筆
+  const [lipColors, setLipColors] = useState<SlotState[]>([emptySlot()])
   const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(isEdit)
 
-  // 載入所有品項
+  // 載入所有品項；編輯時一併載入現有主題資料，並用 item_id 還原回實際品項物件
   useEffect(() => {
-    getItems().then(({ data }) => {
-      setAllItems((data ?? []).filter(i => i.disposal_status !== 'disposed'))
-    })
-  }, [])
+    Promise.all([
+      getItems(),
+      isEdit ? getMakeupThemeById(Number(id)) : Promise.resolve(null),
+    ]).then(([itemsRes, themeRes]) => {
+      const items = (itemsRes.data ?? []).filter(i => i.disposal_status !== 'disposed')
+      setAllItems(items)
+      const itemsById = new Map(items.map(i => [i.id, i]))
 
-  // 編輯時載入現有資料
-  useEffect(() => {
-    if (!isEdit) return
-    getMakeupThemeById(Number(id)).then(({ data }) => {
-      if (!data) return
+      if (!isEdit || !themeRes) {
+        setLoading(false)
+        return
+      }
+      const data = themeRes.data
+      if (!data) { setLoading(false); return }
+
       setName(data.name)
       setNote(data.note ?? '')
+      setTips({
+        eye_tip: data.eye_tip ?? '',
+        cheek_tip: data.cheek_tip ?? '',
+        lip_tip: data.lip_tip ?? '',
+      })
       const next = { ...slots }
-      for (const s of (data as any).makeup_theme_slots as MakeupThemeSlot[]) {
-        next[s.slot] = {
-          item: null,
-          customText: s.custom_text ?? '',
+      const loadedLipColors: SlotState[] = []
+      const allSlots = (data as any).makeup_theme_slots as MakeupThemeSlot[]
+      for (const s of [...allSlots].sort((a, b) => a.sort_order - b.sort_order)) {
+        const linkedItem = s.item_id ? itemsById.get(s.item_id) ?? null : null
+        const val: SlotState = {
+          item: linkedItem,
+          customText: linkedItem ? itemNameOnly(linkedItem) : (s.custom_text ?? ''),
           shadeOverride: s.shade_override ?? '',
-          lipBaseBool: s.lip_base_bool ?? false,
+        }
+        if (s.slot === 'lip_color') {
+          loadedLipColors.push(val)
+        } else {
+          next[s.slot as Exclude<LookSlot, 'lip_color'>] = val
         }
       }
       setSlots(next)
+      setLipColors(loadedLipColors.length ? loadedLipColors : [emptySlot()])
       setLoading(false)
     })
   }, [id, isEdit])
 
-  function setSlot(key: LookSlot, val: SlotState) {
+  function setSlot(key: Exclude<LookSlot, 'lip_color'>, val: SlotState) {
     setSlots(prev => ({ ...prev, [key]: val }))
+  }
+
+  // 品項照片／色票在此頁補上傳後，同步更新品項快取，讓其他槽位的縮圖也一起更新
+  function handleItemUpdated(updated: Item) {
+    setAllItems(prev => prev.map(i => i.id === updated.id ? updated : i))
+  }
+
+  function setLipColor(index: number, val: SlotState) {
+    setLipColors(prev => prev.map((s, i) => (i === index ? val : s)))
+  }
+
+  function addLipColor() {
+    setLipColors(prev => [...prev, emptySlot()])
+  }
+
+  function removeLipColor(index: number) {
+    setLipColors(prev => (prev.length <= 1 ? prev : prev.filter((_, i) => i !== index)))
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -231,39 +471,47 @@ export default function LookFormPage() {
     if (!name.trim()) return
     setSaving(true)
 
+    const tipsPayload = {
+      eye_tip: tips.eye_tip.trim() || null,
+      cheek_tip: tips.cheek_tip.trim() || null,
+      lip_tip: tips.lip_tip.trim() || null,
+    }
+
     let themeId: number
     if (isEdit) {
-      const { data } = await updateMakeupTheme(Number(id), name.trim(), note.trim() || null)
+      const { data } = await updateMakeupTheme(Number(id), name.trim(), note.trim() || null, tipsPayload)
       themeId = data!.id
     } else {
-      const { data } = await createMakeupTheme(name.trim(), note.trim() || null)
+      const { data } = await createMakeupTheme(name.trim(), note.trim() || null, tipsPayload)
       themeId = data!.id
     }
 
     // 組裝 slots（只包含有填內容的）
     const slotRows: Omit<MakeupThemeSlot, 'id' | 'created_at'>[] = []
-    for (const [key, val] of Object.entries(slots) as [LookSlot, SlotState][]) {
-      if (key === 'lip_base') {
-        slotRows.push({
-          theme_id: themeId,
-          slot: key,
-          item_id: null,
-          custom_text: null,
-          shade_override: null,
-          lip_base_bool: val.lipBaseBool,
-        })
-        continue
-      }
+    for (const [key, val] of Object.entries(slots) as [Exclude<LookSlot, 'lip_color'>, SlotState][]) {
       if (!val.item && !val.customText.trim()) continue
       slotRows.push({
         theme_id: themeId,
         slot: key,
         item_id: val.item?.id ?? null,
-        custom_text: val.item ? itemLabel(val.item) : val.customText.trim(),
+        custom_text: val.item ? itemNameOnly(val.item) : val.customText.trim(),
         shade_override: val.shadeOverride.trim() || null,
         lip_base_bool: null,
+        sort_order: 0,
       })
     }
+    lipColors.forEach((val, index) => {
+      if (!val.item && !val.customText.trim()) return
+      slotRows.push({
+        theme_id: themeId,
+        slot: 'lip_color',
+        item_id: val.item?.id ?? null,
+        custom_text: val.item ? itemNameOnly(val.item) : val.customText.trim(),
+        shade_override: val.shadeOverride.trim() || null,
+        lip_base_bool: null,
+        sort_order: index,
+      })
+    })
 
     await upsertThemeSlots(themeId, slotRows)
     setSaving(false)
@@ -310,34 +558,79 @@ export default function LookFormPage() {
               {group.label}
             </h3>
             <div className="space-y-4">
-              {group.slots.map(slotDef => (
-                <div key={slotDef.key}>
-                  <label className="block text-sm font-medium text-[var(--color-text)] mb-1.5">
-                    {slotDef.label}
-                  </label>
-                  {'isBoolean' in slotDef && slotDef.isBoolean ? (
-                    /* 打底 toggle */
-                    <button
-                      type="button"
-                      onClick={() => setSlot(slotDef.key, { ...slots[slotDef.key], lipBaseBool: !slots[slotDef.key].lipBaseBool })}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-sm transition-colors min-h-0 ${
-                        slots[slotDef.key].lipBaseBool
-                          ? 'bg-[var(--color-primary)] text-white border-[var(--color-primary)]'
-                          : 'bg-[var(--color-bg-card)] text-[var(--color-text-muted)] border-[var(--color-border)]'
-                      }`}
-                    >
-                      {slots[slotDef.key].lipBaseBool ? '有打底' : '不打底'}
-                    </button>
-                  ) : (
+              {group.slots.map(slotDef =>
+                'repeatable' in slotDef && slotDef.repeatable ? (
+                  <div key={slotDef.key}>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="block text-sm font-medium text-[var(--color-text)]">
+                        {slotDef.label}
+                      </label>
+                      <button
+                        type="button"
+                        onClick={addLipColor}
+                        className="flex items-center gap-0.5 text-xs font-medium text-[var(--color-primary)] min-h-0 p-0"
+                      >
+                        <Plus size={13} />
+                        疊擦
+                      </button>
+                    </div>
+                    <div className="space-y-3">
+                      {lipColors.map((val, index) => (
+                        <div key={index} className="flex items-start gap-2">
+                          {lipColors.length > 1 && (
+                            <span className="mt-2 text-[10px] font-medium text-[var(--color-text-muted)] shrink-0 w-3 text-center">
+                              {index + 1}
+                            </span>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <ItemPicker
+                              label={lipColors.length > 1 ? `${slotDef.label} ${index + 1}` : ''}
+                              items={allItems}
+                              categories={slotDef.categories as unknown as string[]}
+                              value={val}
+                              onChange={v => setLipColor(index, v)}
+                              onItemUpdated={handleItemUpdated}
+                            />
+                          </div>
+                          {lipColors.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => removeLipColor(index)}
+                              className="mt-2 text-[var(--color-text-muted)] min-h-0 min-w-0 p-0 shrink-0"
+                            >
+                              <X size={14} />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div key={slotDef.key}>
                     <ItemPicker
+                      label={slotDef.label}
                       items={allItems}
                       categories={slotDef.categories as unknown as string[]}
-                      value={slots[slotDef.key]}
-                      onChange={val => setSlot(slotDef.key, val)}
+                      value={slots[slotDef.key as Exclude<LookSlot, 'lip_color'>]}
+                      onChange={val => setSlot(slotDef.key as Exclude<LookSlot, 'lip_color'>, val)}
+                      onItemUpdated={handleItemUpdated}
                     />
-                  )}
-                </div>
-              ))}
+                  </div>
+                )
+              )}
+              {/* 分區小訣竅 */}
+              <div>
+                <label className="block text-sm font-medium text-[var(--color-text)] mb-1.5">
+                  {group.label}小訣竅
+                </label>
+                <textarea
+                  value={tips[group.tipKey]}
+                  onChange={e => setTips(prev => ({ ...prev, [group.tipKey]: e.target.value }))}
+                  rows={2}
+                  placeholder={group.tipPlaceholder}
+                  className="w-full px-3 py-2.5 rounded-xl border border-[var(--color-border)] text-sm text-[var(--color-text)] bg-[var(--color-bg-card)] focus:outline-none focus:border-[var(--color-primary)] resize-none"
+                />
+              </div>
             </div>
           </div>
         ))}

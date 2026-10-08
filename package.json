@@ -1,7 +1,7 @@
 {
   "name": "beauty-vault",
   "private": true,
-  "version": "260717-1",
+  "version": "261008-1",
   "type": "module",
   "scripts": {
     "dev": "vite",

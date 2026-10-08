@@ -1,4 +1,4 @@
-import { useEffect, useState, forwardRef } from "react";
+import { useEffect, useRef, useState, forwardRef } from "react";
 import { AutoTextarea } from "@/components/ui/AutoTextarea";
 import { useNavigate, useParams } from "react-router-dom";
 import { useForm, Controller } from "react-hook-form";
@@ -11,7 +11,7 @@ import { useComboboxOptions } from "@/hooks/useComboboxOptions";
 import { createItem, getItemById, updateItem } from "@/lib/supabase/items";
 import { supabase } from "@/lib/supabase/client";
 import { SENSITIVE_SKIN_OPTIONS } from "@/utils/categories";
-import { Camera } from "lucide-react";
+import { Camera, X } from "lucide-react";
 import Toggle from "@/components/ui/Toggle";
 import { useToast } from "@/components/ui/Toast";
 import { addCustomOption } from "@/lib/customOptions";
@@ -62,6 +62,8 @@ const schema = z.object({
 });
 
 type FormData = z.infer<typeof schema>;
+type ItemImage = { key: string; url: string; file?: File };
+const MAX_ITEM_IMAGES = 8;
 
 
 function Field({
@@ -126,8 +128,9 @@ export default function ItemFormPage() {
   const { brands, names, brandZhOptions, nameZhOptions, shadeEnOptions } =
     useComboboxOptions();
   const { channels } = useChannels();
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [images, setImages] = useState<ItemImage[]>([]);
+  const imagesRef = useRef<ItemImage[]>([]);
+  const [swatchColors, setSwatchColors] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [createdId, setCreatedId] = useState<number | null>(null);
 
@@ -135,6 +138,16 @@ export default function ItemFormPage() {
   const [foreignAmount, setForeignAmount] = useState("");
   const [rate, setRate] = useState("");
   const [selectedCurrency, setSelectedCurrency] = useState("");
+
+  useEffect(() => {
+    imagesRef.current = images;
+  }, [images]);
+
+  useEffect(() => () => {
+    imagesRef.current.forEach((image) => {
+      if (image.file) URL.revokeObjectURL(image.url);
+    });
+  }, []);
 
   const {
     register,
@@ -184,20 +197,72 @@ export default function ItemFormPage() {
       // category/item_type 即使是空值也要明確設定，避免驗證失敗
       setValue('item_type', data.item_type ?? 'makeup');
       setValue('category', data.category ?? '');
-      if (data.image_url) setImagePreview(data.image_url);
+      const imageUrls: string[] = data.image_urls?.length
+        ? data.image_urls
+        : data.image_url ? [data.image_url] : [];
+      setImages(imageUrls.map((url, index) => ({ key: `saved-${index}-${url}`, url })));
+      const colors: string[] = data.swatch_colors?.length
+        ? data.swatch_colors
+        : data.swatch_color ? [data.swatch_color] : [];
+      setSwatchColors(colors);
     });
   }, [id, isEdit, setValue]);
 
+  function addSwatchColor() {
+    setSwatchColors(prev => [...prev, '#C4768A']);
+  }
+
+  function updateSwatchColor(index: number, color: string) {
+    setSwatchColors(prev => prev.map((c, i) => (i === index ? color : c)));
+  }
+
+  function removeSwatchColor(index: number) {
+    setSwatchColors(prev => prev.filter((_, i) => i !== index));
+  }
+
   function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setImageFile(file);
-    setImagePreview(URL.createObjectURL(file));
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = "";
+    if (!files.length) return;
+
+    const imageFiles = files.filter((file) => file.type.startsWith("image/"));
+    const availableSlots = MAX_ITEM_IMAGES - images.length;
+    const filesToAdd = imageFiles.slice(0, availableSlots);
+    if (filesToAdd.length < files.length) {
+      showToast(`最多可上傳 ${MAX_ITEM_IMAGES} 張照片`, "error");
+    }
+    if (!filesToAdd.length) return;
+
+    setImages((current) => [
+      ...current,
+      ...filesToAdd.map((file) => ({
+        key: `${Date.now()}-${Math.random()}`,
+        url: URL.createObjectURL(file),
+        file,
+      })),
+    ]);
+  }
+
+  function removeImage(index: number) {
+    setImages((current) => {
+      const image = current[index];
+      if (image?.file) URL.revokeObjectURL(image.url);
+      return current.filter((_, imageIndex) => imageIndex !== index);
+    });
+  }
+
+  function makeCoverImage(index: number) {
+    setImages((current) => {
+      if (index === 0) return current;
+      const next = [...current];
+      const [cover] = next.splice(index, 1);
+      next.unshift(cover);
+      return next;
+    });
   }
 
   async function uploadImage(file: File): Promise<string | null> {
-    const ext = file.name.split(".").pop();
-    const path = `items/${Date.now()}.${ext}`;
+    const path = `items/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.jpg`;
     const compressed = await compressImage(file);
     const { error } = await supabase.storage
       .from("product-images")
@@ -208,9 +273,11 @@ export default function ItemFormPage() {
   }
 
   async function compressImage(file: File): Promise<Blob> {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       const img = new Image();
+      const objectUrl = URL.createObjectURL(file);
       img.onload = () => {
+        URL.revokeObjectURL(objectUrl);
         const canvas = document.createElement("canvas");
         const maxSize = 800;
         const ratio = Math.min(maxSize / img.width, maxSize / img.height, 1);
@@ -219,67 +286,77 @@ export default function ItemFormPage() {
         canvas
           .getContext("2d")!
           .drawImage(img, 0, 0, canvas.width, canvas.height);
-        canvas.toBlob((blob) => resolve(blob!), "image/jpeg", 0.8);
+        canvas.toBlob((blob) => {
+          if (blob) resolve(blob);
+          else reject(new Error("無法處理這張圖片"));
+        }, "image/jpeg", 0.8);
       };
-      img.src = URL.createObjectURL(file);
+      img.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        reject(new Error("無法讀取這張圖片"));
+      };
+      img.src = objectUrl;
     });
   }
 
   const onSubmit = async (data: FormData) => {
     setSubmitting(true);
-    let image_url: string | undefined;
-
-    if (imageFile) {
-      const url = await uploadImage(imageFile);
-      if (url) {
-        image_url = url;
-      } else {
-        showToast("圖片上傳失敗，品項仍會儲存（不含圖片）", "error");
-      }
-    }
-
-    const payload = {
-      ...data,
-      price:
-        data.price_type === "gift"
-          ? 0
-          : data.price === ""
-            ? null
-            : Number(data.price),
-      price_type: data.price_type ?? "normal",
-      original_price:
-        data.price_type === "split" && data.original_price !== ""
-          ? Number(data.original_price)
-          : null,
-      rating: data.rating !== "" && data.rating != null ? Number(data.rating) : null,
-      brand_zh: data.brand_zh || null,
-      brand_en: data.brand_en || null,
-      name_zh: data.name_zh || null,
-      name_en: data.name_en || null,
-      shade_zh: itemType === "makeup" ? (data.shade_zh || null) : null,
-      shade_en: itemType === "makeup" ? (data.shade_en || null) : null,
-      mfg_date: data.mfg_date || null,
-      exp_date: data.exp_date || null,
-      purchase_date: data.purchase_date || null,
-      note: data.note || null,
-      review: data.review || null,
-      category: data.category || null,
-      subcategory: data.subcategory || null,
-      currency: data.currency || null,
-      foreign_amount: data.foreign_amount === "" ? null : Number(data.foreign_amount) || null,
-      exchange_rate: data.exchange_rate === "" ? null : Number(data.exchange_rate) || null,
-      sensitive_skin_ok:
-        itemType === "skincare" ? (data.sensitive_skin_ok ?? "untested") : null,
-      fragrance: itemType === "skincare" ? (data.fragrance ?? null) : null,
-      is_dud: data.is_dud ?? false,
-      is_sample: data.is_sample ?? false,
-      is_favorite: data.is_favorite ?? false,
-      volume_ml: data.volume_ml !== "" && data.volume_ml != null ? Number(data.volume_ml) : null,
-      channel: data.channel || null,
-      ...(image_url ? { image_url } : {}),
-    };
-
     try {
+      const imageUrls: string[] = [];
+      for (const image of images) {
+        if (!image.file) {
+          imageUrls.push(image.url);
+          continue;
+        }
+        const url = await uploadImage(image.file);
+        if (!url) throw new Error("圖片上傳失敗，請檢查網路後重試");
+        imageUrls.push(url);
+      }
+
+      const payload = {
+        ...data,
+        price:
+          data.price_type === "gift"
+            ? 0
+            : data.price === ""
+              ? null
+              : Number(data.price),
+        price_type: data.price_type ?? "normal",
+        original_price:
+          data.price_type === "split" && data.original_price !== ""
+            ? Number(data.original_price)
+            : null,
+        rating: data.rating !== "" && data.rating != null ? Number(data.rating) : null,
+        brand_zh: data.brand_zh || null,
+        brand_en: data.brand_en || null,
+        name_zh: data.name_zh || null,
+        name_en: data.name_en || null,
+        shade_zh: itemType === "makeup" ? (data.shade_zh || null) : null,
+        shade_en: itemType === "makeup" ? (data.shade_en || null) : null,
+        mfg_date: data.mfg_date || null,
+        exp_date: data.exp_date || null,
+        purchase_date: data.purchase_date || null,
+        note: data.note || null,
+        review: data.review || null,
+        category: data.category || null,
+        subcategory: data.subcategory || null,
+        currency: data.currency || null,
+        foreign_amount: data.foreign_amount === "" ? null : Number(data.foreign_amount) || null,
+        exchange_rate: data.exchange_rate === "" ? null : Number(data.exchange_rate) || null,
+        sensitive_skin_ok:
+          itemType === "skincare" ? (data.sensitive_skin_ok ?? "untested") : null,
+        fragrance: itemType === "skincare" ? (data.fragrance ?? null) : null,
+        is_dud: data.is_dud ?? false,
+        is_sample: data.is_sample ?? false,
+        is_favorite: data.is_favorite ?? false,
+        volume_ml: data.volume_ml !== "" && data.volume_ml != null ? Number(data.volume_ml) : null,
+        channel: data.channel || null,
+        swatch_color: swatchColors[0] ?? null,
+        swatch_colors: swatchColors,
+        image_url: imageUrls[0] ?? null,
+        image_urls: imageUrls,
+      };
+
       if (isEdit) {
         await updateItem(Number(id), payload);
         showToast("品項已更新");
@@ -303,8 +380,9 @@ export default function ItemFormPage() {
         : typeof err === 'object' && err !== null && 'message' in err ? String((err as { message: unknown }).message)
         : undefined
       showToast("儲存失敗，請稍後再試", "error", detail)
+    } finally {
+      setSubmitting(false);
     }
-    setSubmitting(false);
   };
 
   const activeType =
@@ -735,43 +813,100 @@ export default function ItemFormPage() {
         </div>
 
         {/* 圖片 */}
-        <Field label="產品圖片">
-          <label className="inline-block cursor-pointer">
-            {imagePreview ? (
-              <div className="relative w-32 h-32">
-                <img
-                  src={imagePreview}
-                  alt="preview"
-                  className="w-full h-full object-cover rounded-xl"
+        <Field label="產品照片">
+          <div className="space-y-3">
+            <p className="text-xs text-[var(--color-text-muted)]">
+              可選取多張照片，最多 {MAX_ITEM_IMAGES} 張；第一張會作為封面。
+            </p>
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+              {images.map((image, index) => (
+                <div key={image.key} className="relative aspect-square">
+                  <img
+                    src={image.url}
+                    alt={`產品照片 ${index + 1}`}
+                    className="w-full h-full object-cover rounded-xl border border-[var(--color-border)]"
+                  />
+                  {index === 0 ? (
+                    <span className="absolute left-1.5 bottom-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium bg-[var(--color-bg-card)]/90 text-[var(--color-text)]">
+                      封面
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => makeCoverImage(index)}
+                      className="absolute left-1 bottom-1 px-2 py-1 rounded-lg text-[10px] font-medium min-h-0 text-white bg-black/55 hover:bg-black/70 transition-colors"
+                      aria-label={`將第 ${index + 1} 張設為封面`}
+                    >
+                      設為封面
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => removeImage(index)}
+                    className="absolute -top-2 -right-2 w-7 h-7 flex items-center justify-center rounded-full text-white bg-[var(--color-danger)] shadow-sm min-h-0 min-w-0"
+                    aria-label={`移除第 ${index + 1} 張照片`}
+                  >
+                    <X size={15} />
+                  </button>
+                </div>
+              ))}
+              {images.length < MAX_ITEM_IMAGES && (
+                <label className="aspect-square cursor-pointer border-2 border-dashed border-[var(--color-border)] rounded-xl flex flex-col items-center justify-center text-[var(--color-text-muted)] text-sm hover:border-[var(--color-primary)] focus-within:border-[var(--color-primary)] transition-colors gap-1.5">
+                  <Camera size={24} strokeWidth={1.5} />
+                  <span>新增照片</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handleImageChange}
+                    className="sr-only"
+                    aria-label="選取產品照片"
+                  />
+                </label>
+              )}
+            </div>
+          </div>
+        </Field>
+
+        {/* 色票（選填，可新增多個，例如眼影盤多色；無產品圖片時用於妝容主題頁顯示色塊） */}
+        <Field label="色票顏色">
+          <div className="space-y-2">
+            {swatchColors.map((color, index) => (
+              <div key={index} className="flex items-center gap-2">
+                <label className="relative w-10 h-10 rounded-full overflow-hidden border border-[var(--color-border)] cursor-pointer shrink-0">
+                  <div className="w-full h-full" style={{ background: /^#[0-9a-fA-F]{3,8}$/.test(color) ? color : 'var(--color-bg-muted)' }} />
+                  <input
+                    type="color"
+                    value={/^#[0-9a-fA-F]{6}$/.test(color) ? color : '#C4768A'}
+                    onChange={(e) => updateSwatchColor(index, e.target.value)}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  />
+                </label>
+                <input
+                  type="text"
+                  value={color}
+                  onChange={(e) => updateSwatchColor(index, e.target.value)}
+                  placeholder="＃HEX，例如 C4768A"
+                  className="flex-1 px-3 py-2 rounded-xl border border-[var(--color-border)] text-sm text-[var(--color-text)] bg-[var(--color-bg-card)] focus:outline-none"
                 />
                 <button
                   type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    setImageFile(null);
-                    setImagePreview(null);
-                    const input = (e.currentTarget.closest('label') as HTMLLabelElement)
-                      ?.querySelector('input[type="file"]') as HTMLInputElement | null;
-                    if (input) input.value = '';
-                  }}
-                  className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full text-xs flex items-center justify-center min-h-0 min-w-0"
+                  onClick={() => removeSwatchColor(index)}
+                  className="w-8 h-8 rounded-full text-[var(--color-text-muted)] flex items-center justify-center min-h-0 min-w-0 shrink-0 hover:bg-[var(--color-bg-muted)] transition-colors"
                 >
-                  ✕
+                  <X size={14} strokeWidth={2} />
                 </button>
               </div>
-            ) : (
-              <div className="w-32 h-32 border-2 border-dashed border-[var(--color-border)] rounded-xl flex flex-col items-center justify-center text-[var(--color-text-muted)] text-sm hover:border-[var(--color-primary)] transition-colors gap-1.5">
-                <Camera size={24} strokeWidth={1.5} />
-                <span>上傳圖片</span>
-              </div>
-            )}
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleImageChange}
-              className="hidden"
-            />
-          </label>
+            ))}
+            <button
+              type="button"
+              onClick={addSwatchColor}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-opacity hover:opacity-70 active:opacity-50 min-h-0"
+              style={{ color: '#7A8FA8', background: '#c2cad880' }}
+            >
+              + 新增色票
+            </button>
+          </div>
         </Field>
 
         {/* 功能欄 */}
@@ -970,8 +1105,10 @@ export default function ItemFormPage() {
                 type="button"
                 onClick={() => {
                   reset({ item_type: "makeup", sensitive_skin_ok: "untested", price_type: "normal" });
-                  setImageFile(null);
-                  setImagePreview(null);
+                  imagesRef.current.forEach((image) => {
+                    if (image.file) URL.revokeObjectURL(image.url);
+                  });
+                  setImages([]);
                   setShowCurrencyPanel(false);
                   setForeignAmount("");
                   setRate("");

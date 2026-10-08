@@ -12,6 +12,7 @@ import {
   Pill,
   Wrench,
   Activity,
+  SpellCheck,
 } from "lucide-react";
 
 const navGroups = [
@@ -34,6 +35,7 @@ const navGroups = [
       { to: "/my/medications", label: "用藥紀錄", Icon: Pill },
       { to: "/my/categories", label: "類別管理", Icon: Tag },
       { to: "/my/channels", label: "通路管理", Icon: Activity },
+      { to: "/my/suggestions", label: "建議詞管理", Icon: SpellCheck },
     ],
   },
   {

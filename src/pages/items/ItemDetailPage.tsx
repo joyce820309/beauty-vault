@@ -36,11 +36,19 @@ export default function ItemDetailPage() {
   const [deleting, setDeleting] = useState(false)
   const [duplicating, setDuplicating] = useState(false)
   const [lightboxOpen, setLightboxOpen] = useState(false)
+  const [imageIndex, setImageIndex] = useState(0)
   const [statusUpdating, setStatusUpdating] = useState(false)
   const [flagConfirm, setFlagConfirm] = useState<'is_favorite' | 'is_dud' | null>(null)
   const [showDisposalModal, setShowDisposalModal] = useState(false)
   const [rateHistory, setRateHistory] = useState<ItemExchangeRate[]>([])
   const { showToast } = useToast()
+  const itemImages = item?.image_urls?.length
+    ? item.image_urls
+    : item?.image_url ? [item.image_url] : []
+
+  useEffect(() => {
+    setImageIndex(0)
+  }, [item?.id])
 
   useEffect(() => {
     if (!item) return
@@ -294,28 +302,49 @@ export default function ItemDetailPage() {
         </div>
       )}
 
-      {/* 圖片縮圖（點擊放大） */}
-      {item.image_url && (
-        <>
+      {/* 產品照片相簿 */}
+      {itemImages.length > 0 && (
+        <div className="mb-5">
           {lightboxOpen && (
             <Lightbox
-              images={[item.image_url]}
-              index={0}
+              images={itemImages}
+              index={imageIndex}
               onClose={() => setLightboxOpen(false)}
+              onPrev={() => setImageIndex((current) => (current - 1 + itemImages.length) % itemImages.length)}
+              onNext={() => setImageIndex((current) => (current + 1) % itemImages.length)}
             />
           )}
           <button
             type="button"
             onClick={() => setLightboxOpen(true)}
-            className="block mb-5 rounded-2xl overflow-hidden bg-[var(--color-bg-muted)] min-h-0 min-w-0 hover:opacity-90 transition-opacity mx-auto"
+            className="block rounded-2xl overflow-hidden bg-[var(--color-bg-muted)] min-h-0 min-w-0 hover:opacity-90 transition-opacity mx-auto"
+            aria-label="放大產品照片"
           >
             <img
-              src={item.image_url}
-              alt={itemName}
+              src={itemImages[imageIndex]}
+              alt={`${itemName}，照片 ${imageIndex + 1}`}
               className="max-h-64 w-auto object-contain rounded-2xl"
             />
           </button>
-        </>
+          {itemImages.length > 1 && (
+            <div className="flex gap-2 mt-3 overflow-x-auto justify-center">
+              {itemImages.map((image, index) => (
+                <button
+                  key={`${image}-${index}`}
+                  type="button"
+                  onClick={() => setImageIndex(index)}
+                  className={`shrink-0 w-14 h-14 rounded-lg overflow-hidden border-2 min-h-0 min-w-0 transition-colors ${
+                    imageIndex === index ? 'border-[var(--color-primary)]' : 'border-[var(--color-border)]'
+                  }`}
+                  aria-label={`顯示第 ${index + 1} 張照片`}
+                  aria-pressed={imageIndex === index}
+                >
+                  <img src={image} alt="" className="w-full h-full object-cover" />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       )}
 
       {/* 品名與標籤 */}

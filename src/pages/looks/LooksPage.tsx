@@ -29,8 +29,7 @@ function slotSummary(theme: MakeupThemeWithSlots): string {
   return parts.join('・') || '尚無品項'
 }
 
-function getSlotDisplay(s: { custom_text: string | null; shade_override: string | null; lip_base_bool: boolean | null; slot: string }): string {
-  if (s.slot === 'lip_base') return s.lip_base_bool ? '有打底' : '不打底'
+function getSlotDisplay(s: { custom_text: string | null; shade_override: string | null }): string {
   const name = s.custom_text ?? ''
   const shade = s.shade_override ? ` ＃${s.shade_override}` : ''
   return name + shade || '—'
@@ -104,12 +103,23 @@ export default function LooksPage() {
 
               {/* 槽位快覽 */}
               <div className="mt-3 grid grid-cols-3 gap-x-3 gap-y-1.5">
-                {theme.makeup_theme_slots.map(s => (
-                  <div key={s.id} className="min-w-0">
-                    <p className="text-[10px] text-[var(--color-text-muted)] leading-none mb-0.5">{SLOT_LABELS[s.slot] ?? s.slot}</p>
-                    <p className="text-xs text-[var(--color-text)] truncate">{getSlotDisplay(s)}</p>
-                  </div>
-                ))}
+                {[...theme.makeup_theme_slots]
+                  .sort((a, b) => a.sort_order - b.sort_order)
+                  .map((s, _idx, arr) => {
+                    const lipColorIndex = s.slot === 'lip_color'
+                      ? arr.filter(x => x.slot === 'lip_color').findIndex(x => x.id === s.id)
+                      : -1
+                    const lipColorCount = arr.filter(x => x.slot === 'lip_color').length
+                    const label = lipColorIndex >= 0 && lipColorCount > 1
+                      ? `${SLOT_LABELS.lip_color}${lipColorIndex + 1}`
+                      : (SLOT_LABELS[s.slot] ?? s.slot)
+                    return (
+                      <div key={s.id} className="min-w-0">
+                        <p className="text-[10px] text-[var(--color-text-muted)] leading-none mb-0.5">{label}</p>
+                        <p className="text-xs text-[var(--color-text)] truncate">{getSlotDisplay(s)}</p>
+                      </div>
+                    )
+                  })}
               </div>
             </Link>
           ))}
