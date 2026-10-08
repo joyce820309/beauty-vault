@@ -82,6 +82,7 @@ function SwatchEditPopover({
 }) {
   const { showToast } = useToast()
   const [uploading, setUploading] = useState(false)
+  const [hexInput, setHexInput] = useState('')
   const popRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -115,6 +116,14 @@ function SwatchEditPopover({
     if (error || !data) { showToast('更新色票失敗', 'error'); return }
     onItemUpdated(data)
     showToast('已新增色票')
+  }
+
+  async function submitHexInput() {
+    const raw = hexInput.trim()
+    if (!raw) return
+    const hex = raw.startsWith('#') ? raw : `#${raw}`
+    await saveColor(hex)
+    setHexInput('')
   }
 
   async function removeColor(index: number) {
@@ -159,7 +168,7 @@ function SwatchEditPopover({
             ))}
           </div>
         )}
-        {/* 新增色票：HEX 文字輸入，或點色盤圖示用選色器輔助選色 */}
+        {/* 新增色票：HEX 文字輸入 + 明確的新增按鈕，或點色盤圖示用選色器輔助選色 */}
         <div className="flex items-center gap-1.5">
           <label className="relative shrink-0 text-[var(--color-text-muted)] hover:text-[var(--color-primary)] transition-colors cursor-pointer">
             <Palette size={13} strokeWidth={1.5} />
@@ -174,16 +183,24 @@ function SwatchEditPopover({
           </label>
           <input
             type="text"
+            value={hexInput}
+            onChange={(e) => setHexInput(e.target.value)}
             placeholder="新增 HEX，例如 C4768A"
             className="flex-1 min-w-0 px-2 py-1.5 rounded-lg border border-[var(--color-border)] text-xs text-[var(--color-text)] bg-[var(--color-bg-card)] focus:outline-none focus:border-[var(--color-primary)]"
-            onKeyDown={async (e) => {
+            onKeyDown={(e) => {
               if (e.key !== 'Enter') return
-              const raw = e.currentTarget.value.trim()
-              const hex = raw.startsWith('#') ? raw : `#${raw}`
-              await saveColor(hex)
-              e.currentTarget.value = ''
+              e.preventDefault()
+              submitHexInput()
             }}
           />
+          <button
+            type="button"
+            onClick={submitHexInput}
+            disabled={!hexInput.trim()}
+            className="shrink-0 px-2.5 py-1.5 rounded-lg text-xs font-medium text-white bg-[var(--color-primary)] disabled:opacity-40 min-h-0"
+          >
+            新增
+          </button>
         </div>
       </div>
     </div>
